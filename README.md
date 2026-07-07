@@ -29,7 +29,7 @@ This repository covers the following topics:
 - **04-sync-process**: Understanding the Sync Process, Configuration Drift, and Application Health status.
 - **05-intro-helm-charts**: Working with Helm Charts. Learn how Argo CD integrates with Helm as a template engine.
 - **06-public-helm-charts**: Deploying Public Helm Charts from external repositories.
-- **07setting-chart-values**: Customizing Helm Values & Precedence using `values.yaml` and parameters.
+- **07-setting-chart-values**: Customizing Helm Values & Precedence using `values.yaml` and parameters.
 - **08-automated-sync-pruning**: Advanced Sync & Automation. Configuring automated syncing and pruning of orphaned resources.
 - **09-self-healing**: Implementing Self-Healing to automatically correct configuration drift.
 - **10-private-repo-https**: Access Management. Connecting to private Git repositories using HTTPS and Personal Access Tokens.
