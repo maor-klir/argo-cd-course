@@ -167,13 +167,23 @@ data:
   application.resourceTrackingMethod: annotation
 ```
 
+**The label key is configurable as well**, so `app.kubernetes.io/instance` is only the fallback: *"If omitted, Argo CD injects the app name into the label: `app.kubernetes.io/instance`"*. Under `label` tracking Argo CD *"Uses the `application.instanceLabelKey` label for tracking"* — whatever that key has been set to:
+
+```yaml
+# argocd-cm
+data:
+  application.instanceLabelKey: argocd.argoproj.io/instance
+```
+
+That override ships in the official install manifests, so on a stock install `app.kubernetes.io/instance` is not the label in use even if you switch tracking to `label`.
+
 **Label tracking is the legacy option, and the docs are direct about why:**
 
 - **labels are truncated to 63 characters**, so long application names collide silently
 - *"Other external tools might write/append to this label and create conflicts with Argo CD"*
 - with two Argo CD instances on one cluster, a bare label cannot say which instance owns what
 
-**Changing the method requires a re-sync:** *"Once you change the value you need to sync your applications again (or wait for the sync mechanism to kick-in) in order to apply your changes."* Existing resources keep their old marking until something re-applies them.
+**Changing the method requires a re-sync:** *"Note that once you change the value you need to sync your applications again (or wait for the sync mechanism to kick-in) in order to apply your changes."* Existing resources keep their old marking until something re-applies them.
 
 ### Why the id names the object, not just the app
 
