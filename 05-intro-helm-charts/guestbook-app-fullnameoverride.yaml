@@ -10,8 +10,11 @@ spec:
     targetRevision: HEAD
     path: helm-guestbook
     helm:
-      valueFiles:
-        - values.yaml
+      valuesObject:
+        fullnameOverride: guestbook-ui
   destination:
     server: https://kubernetes.default.svc
     namespace: default
+
+# NEW tracking-id: guestbook:/Service:default/guestbook-helm-guestbook
+# OLD tracking-id: guestbook:/Service:default/guestbook-ui
