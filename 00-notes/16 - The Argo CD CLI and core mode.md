@@ -2,7 +2,7 @@
 
 # The Argo CD CLI and core mode
 
-The `argocd` CLI is normally a **client of `argocd-server`** — it speaks gRPC to the API server, which means it needs a reachable endpoint and a login. On a lab cluster with no ingress, that endpoint does not exist until you make one.
+The `argocd` CLI is normally a **client of `argocd-server`** — it speaks gRPC to the API server, which means it needs a reachable endpoint and a login. On a lab cluster with no ingress, that endpoint does not exist until we make one.
 
 There are three ways to give it one, and the third bypasses `argocd-server` altogether.
 
@@ -10,7 +10,7 @@ There are three ways to give it one, and the third bypasses `argocd-server` alto
 
 | Mode | How it connects | Needs |
 |---|---|---|
-| **Direct** | gRPC to a server address you supply | a reachable `argocd-server` — ingress, LoadBalancer, or a port-forward you run yourself |
+| **Direct** | gRPC to a server address we supply | a reachable `argocd-server` — ingress, LoadBalancer, or a port-forward we run ourselves |
 | **`--port-forward`** | the CLI opens its own port-forward to `argocd-server` | cluster access; no manual tunnel, no address to remember |
 | **`--core`** | talks to the Kubernetes API directly, no `argocd-server` involved | cluster access and RBAC on Argo CD's resources |
 
@@ -36,7 +36,7 @@ Useful flags when the server is not plainly reachable:
 | `--plaintext` | the server is serving HTTP, not HTTPS |
 | `--insecure` | skip certificate and domain verification — self-signed certs |
 | `--grpc-web` | the server sits behind a proxy without HTTP/2 support |
-| `--name` | store the context under a name of your choosing |
+| `--name` | store the context under a name of our choosing |
 
 `argocd login` stores the server details and the resulting auth token in the CLI's own config and makes that context current.
 
@@ -61,13 +61,13 @@ The flag does not require the install mode. Everything documented here was read 
 FATA[0000] configmap "argocd-cm" not found
 ```
 
-That is core mode looking for Argo CD's config in whatever namespace your context points at. The documented fix:
+That is core mode looking for Argo CD's config in whatever namespace our context points at. The documented fix:
 
 ```bash
 kubectl config set-context --current --namespace=argocd
 ```
 
-If you would rather not move your active context, point `KUBECONFIG` at a copy with the namespace set:
+If we would rather not move our active context, point `KUBECONFIG` at a copy with the namespace set:
 
 ```bash
 cp ~/.kube/config /tmp/kc-argocd.yaml
@@ -78,7 +78,7 @@ KUBECONFIG=/tmp/kc-argocd.yaml argocd app get guestbook --core
 **Authorisation falls back to Kubernetes RBAC:**  
 Bypassing `argocd-server` also bypasses Argo CD's own RBAC model and any SSO.  
 The docs are explicit that *"the user (or the process) invoking the CLI needs to have access to the Argo CD namespace with the proper permission in the Application and ApplicationSet resources."*  
-Whatever your kubeconfig can do to those resources is what you can do — no more, no less. Worth remembering before assuming a project restriction protects something.
+Whatever our kubeconfig can do to those resources is what we can do — no more, no less. Worth remembering before assuming a project restriction protects something.
 
 ### Core mode is a saved context, not a one-way switch
 
@@ -133,7 +133,7 @@ The full set of ways to move between the two:
 
 The `--core` flag works per command regardless of which context is current, so the context only sets the default. **A context pointing at `localhost:8080` depends on a live port-forward:** switching back to it with no tunnel running gives a connection error, which means the tunnel is missing, not that the context is broken.
 
-**That config file holds bearer tokens in plaintext,** one per server login. It is mode 600, and should stay that way.
+**That config file holds bearer tokens in plaintext:** one per server login. It is mode 600, and should stay that way.
 
 ## The local Web UI
 

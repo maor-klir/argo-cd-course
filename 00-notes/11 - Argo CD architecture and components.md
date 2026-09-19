@@ -84,9 +84,9 @@ Both the API server and the application controller *call* the repo server; the r
 
 ### API server — `argocd-server`
 
-> "The API server is a gRPC/REST server which exposes the API consumed by the Web UI, CLI, and CI/CD systems."
+> *"The API server is a gRPC/REST server which exposes the API consumed by the Web UI, CLI, and CI/CD systems."*
 
-This is the only externally facing component. Everything you do by hand goes through it: `kubectl port-forward` to the UI, `argocd login` from the CLI, and any programmatic gRPC/REST call from a pipeline.
+This is the only externally facing component. Everything we do by hand goes through it: `kubectl port-forward` to the UI, `argocd login` from the CLI, and any programmatic gRPC/REST call from a pipeline.
 
 Its documented responsibilities:
 
@@ -97,11 +97,11 @@ Its documented responsibilities:
 - RBAC enforcement
 - listener/forwarder for Git webhook events
 
-It holds no state of its own. It translates external requests into work for the other components and returns their answers, which is why it can be scaled to several replicas freely — the docs call it "stateless and probably the least likely to cause issues."
+It holds no state of its own. It translates external requests into work for the other components and returns their answers, which is why it can be scaled to several replicas freely — the docs call it *"stateless and probably the least likely to cause issues."*
 
 ### Repository server — `argocd-repo-server`
 
-> "The repository server is an internal service which maintains a local cache of the Git repository holding the application manifests."
+> *"The repository server is an internal service which maintains a local cache of the Git repository holding the application manifests."*
 
 **Internal** is the operative word: it has a ClusterIP Service on 8081 so the other components can reach it, but it is never exposed outside the cluster.
 
@@ -117,11 +117,11 @@ This is where Helm and Kustomize actually run. The repo server forks and execs t
 - **It is the memory-hungry component:** concurrent manifest generation is what OOM-kills Argo CD installs; `--parallelismlimit` exists to cap it.
 - **It is disk-hungry:** it clones every repository it manages. Manifests are cached for 24 hours by default (`--repo-cache-expiration`), and tool execution is capped at 90 seconds (`ARGOCD_EXEC_TIMEOUT`).
 
-Argo CD never asks you to interact with Git yourself. Every read of a repository — for a sync, a diff, or a UI preview — passes through here.
+Argo CD never asks us to interact with Git ourselves. Every read of a repository — for a sync, a diff, or a UI preview — passes through here.
 
 ### Application controller — `argocd-application-controller`
 
-> "The application controller is a Kubernetes controller which continuously monitors running applications and compares the current, live state against the desired target state (as specified in the repo)."
+> *"The application controller is a Kubernetes controller which continuously monitors running applications and compares the current, live state against the desired target state (as specified in the repo)."*
 
 This is the reconciliation engine — the part that makes Argo CD *GitOps* rather than a deployment button.
 
@@ -130,9 +130,9 @@ What it does:
 - watches only the resources created through an Argo CD **Application**, not everything in the cluster
 - detects the `OutOfSync` state when live and desired differ
 - **optionally** takes corrective action — automatic sync and self-healing are opt-in per Application, not the default
-- invokes user-defined lifecycle hooks: `PreSync`, `Sync`, `PostSync`
+- invokes user-defined lifecycle hooks — `PreSync`, `Sync` and `PostSync` are the ones met most often, out of seven phases in all (**15 - Sync and health checks**)
 
-It polls Git roughly every three minutes by default, and maintains a lightweight cache of cluster state using Kubernetes watch APIs rather than repeatedly listing resources.
+It re-checks Git every two to three minutes by default — a `120s` reconciliation timeout plus up to `60s` of jitter — and maintains a lightweight cache of cluster state using Kubernetes watch APIs rather than repeatedly listing resources.
 
 The word "optionally" is the one to hold on to. Out of the box the controller *reports* drift and does nothing about it. Automated sync, pruning and self-healing are separate switches — the subject of later labs.
 
@@ -142,7 +142,7 @@ The word "optionally" is the one to hold on to. Out of the box the controller *r
 
 A cache, and nothing more. It stores the results of manifest generation and the reported live state of cluster resources, which keeps load off both the Kubernetes API and Git.
 
-> "Redis is only used as a disposable cache and can be safely rebuilt without service disruption."
+> *"Redis is only used as a disposable cache and can be safely rebuilt without service disruption."*
 
 Losing the entire Redis dataset costs performance, not correctness — Argo CD rebuilds it from Git and the Kubernetes API, which are the actual sources of truth. Useful to know before panicking about a crash-looping Redis pod.
 
@@ -156,11 +156,11 @@ It is not needed for the built-in `admin` account, which authenticates against a
 
 Manages the `ApplicationSet` custom resource, which **templates Applications**. One ApplicationSet plus a generator — a list, a Git directory, a cluster list — produces many Application resources.
 
-This is the answer to managing Argo CD at scale: instead of hand-writing one Application per environment per service, you declare the pattern once. It has a `webhook` port on 7000 so Git providers can notify it directly of changes.
+This is the answer to managing Argo CD at scale: instead of hand-writing one Application per environment per service, we declare the pattern once. It has a `webhook` port on 7000 so Git providers can notify it directly of changes.
 
 ### Notifications controller — `argocd-notifications-controller`
 
-> "Argo CD Notifications continuously monitors Argo CD applications and provides a flexible way to notify users about important changes in the application state."
+> *"Argo CD Notifications continuously monitors Argo CD applications and provides a flexible way to notify users about important changes in the application state."*
 
 Two moving parts:
 
@@ -169,7 +169,7 @@ Two moving parts:
 | **Trigger** | *when* to notify — which state change matters |
 | **Template** | *what* to say — the content and format of the message |
 
-Applications subscribe to notifications through annotations, and Argo CD ships a catalogue of ready-made triggers and templates (sync succeeded, sync failed, health degraded) so you rarely start from scratch. Destinations are Slack, email, generic webhooks and similar.
+Applications subscribe to notifications through annotations, and Argo CD ships a catalogue of ready-made triggers and templates (sync succeeded, sync failed, health degraded) so we rarely start from scratch. Destinations are Slack, email, generic webhooks and similar.
 
 Installed by default with the chart. Like the application controller it has no Service — it watches and pushes outward, and nothing dials it.
 
@@ -177,7 +177,7 @@ Installed by default with the chart. Like the application controller it has no S
 
 Every other component is a Deployment. The controller is the exception, and the reason is **not** that it stores data — the docs are explicit that it is stateless.
 
-It is a StatefulSet because it **shards**. When one controller can't hold the cache for every managed cluster in memory, you scale it out and each replica takes a subset of clusters. Sharding needs each replica to know *which* replica it is, and a StatefulSet is what gives pods a stable ordinal identity — `...-controller-0`, `-1`, `-2` — that survives restarts. A Deployment's pods have random names and no such identity.
+It is a StatefulSet because it **shards**. When one controller can't hold the cache for every managed cluster in memory, we scale it out and each replica takes a subset of clusters. Sharding needs each replica to know *which* replica it is, and a StatefulSet is what gives pods a stable ordinal identity — `...-controller-0`, `-1`, `-2` — that survives restarts. A Deployment's pods have random names and no such identity.
 
 Relevant knobs:
 
@@ -185,24 +185,24 @@ Relevant knobs:
 - sharding algorithms: `legacy`, `round-robin`, `consistent-hashing`
 - `--status-processors` (default 20) and `--operation-processors` (default 10) for throughput within a replica
 
-This lab runs a single replica, so no sharding is in play — but it explains the odd workload kind you see in `kubectl get all`.
+This lab runs a single replica, so no sharding is in play — but it explains the odd workload kind we see in `kubectl get all`.
 
 ## What is actually optional
 
-The clearest way to see which components are load-bearing is **Argo CD Core**, an installation mode that strips Argo CD to "a fully functional GitOps engine" and drops everything else.
+The clearest way to see which components are load-bearing is **Argo CD Core**, an installation mode that strips Argo CD to *"a fully functional GitOps engine"* and drops everything else.
 
 | Component | In Core? |
 |---|---|
 | Application controller | yes — the engine |
 | Repository server | yes |
-| Redis | yes — "even if the Argo CD controller can run without Redis, it isn't recommended" |
+| Redis | yes — *"even if the Argo CD controller can run without Redis, it isn't recommended"* |
 | CRDs (Application, ApplicationSet) | yes |
 | API server | **no** |
 | Dex / OIDC authentication | **no** |
 | Notifications controller | **no** |
 | Argo CD RBAC model | **no** |
 
-In Core mode the Web UI and CLI work only in a limited, local way, and you interact with Argo CD through Kubernetes resources and ordinary Kubernetes RBAC.
+In Core mode the Web UI and CLI work only in a limited, local way, and we interact with Argo CD through Kubernetes resources and ordinary Kubernetes RBAC.
 
 The useful takeaway for reading the architecture: **controller + repo server + Redis is Argo CD.** The API server, Dex and the notifications controller exist to give humans and external systems a way in — they are the interface layer, not the engine.
 
@@ -218,7 +218,7 @@ appprojects.argoproj.io           # a boundary: which repos/clusters/kinds a gro
 
 `Application` is the one that matters immediately — it is the resource that tells the application controller "watch these manifests from this repo, and compare them against this namespace."
 
-## Verify on your own cluster
+## Verify on our own cluster
 
 ```bash
 kubectl -n argocd get deploy,sts
@@ -240,4 +240,4 @@ kubectl -n argocd get deploy argocd-server \
   -o jsonpath='{.spec.template.spec.containers[0].image}'   # Argo CD version
 ```
 
-> Component names and roles are stable across chart versions; flags and defaults are not. Check the docs for the version you actually have rather than the current stable release.
+> Component names and roles are stable across chart versions; flags and defaults are not. Check the docs for the version we actually have rather than the current stable release.

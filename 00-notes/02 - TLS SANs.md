@@ -32,7 +32,7 @@ When a TLS client opens a connection it performs two independent checks:
 
 Both must pass. Check 2 is the one that bites, because check 1 usually succeeds — the CA is the cluster's own and it's right there in the kubeconfig.
 
-**The Common Name field is not a fallback.** Historically a CN could stand in for a SAN. Go — which both `kubectl` and the API server are written in — stopped honouring CN entirely in **Go 1.15**. The SAN list is the only thing that counts now. A cert with a perfect CN and an empty SAN list matches nothing.
+**The Common Name field is not a fallback:** historically a CN could stand in for a SAN. Go — which both `kubectl` and the API server are written in — stopped honouring CN entirely in **Go 1.15**. The SAN list is the only thing that counts now. A cert with a perfect CN and an empty SAN list matches nothing.
 
 ## IP SANs and DNS SANs are not interchangeable
 
@@ -53,7 +53,7 @@ Wildcards also apply to DNS names only — there is no such thing as a wildcard 
 
 ## Certificates are minted once
 
-The SAN list is baked in at generation time. Deciding six labs from now that you'd rather use a hostname means the existing certificate doesn't have it — and adding the flag to a running server changes nothing, because it finds a certificate already on disk and reuses it.
+The SAN list is baked in at generation time. Deciding six labs from now that we'd rather use a hostname means the existing certificate doesn't have it — and adding the flag to a running server changes nothing, because it finds a certificate already on disk and reuses it.
 
 Fixing after the fact means deleting the cert and key so they get regenerated. For k3s, inside the server container:
 
@@ -63,7 +63,7 @@ rm /var/lib/rancher/k3s/server/tls/serving-kube-apiserver.crt \
 # then restart k3s
 ```
 
-Doable, but recreating the cluster is usually less fuss. That is the argument for **listing every address you might plausibly use, up front** — LAN IP, hostname, mDNS name, VPN address, whatever the future looks like.
+Doable, but recreating the cluster is usually less fuss. That is the argument for **listing every address we might plausibly use, up front** — LAN IP, hostname, mDNS name, VPN address, whatever the future looks like.
 
 ## Worked example: the k3s API server under k3d
 
@@ -91,7 +91,7 @@ The principle is universal; only the flag name changes.
 |---|---|
 | k3s / k3d | `--tls-san` (repeatable) |
 | kubeadm | `--apiserver-cert-extra-sans`, or `apiServer.certSANs` in the config |
-| kube-apiserver directly | whatever minted `--tls-cert-file` — SANs come from your CSR |
+| kube-apiserver directly | whatever minted `--tls-cert-file` — SANs come from our CSR |
 | openssl / cfssl | `subjectAltName` in the CSR extensions |
 
 ## Reading a certificate
@@ -124,9 +124,9 @@ X509v3 Subject Alternative Name:
 
 Both custom SANs landed: `IP Address:192.168.0.2` and `DNS:pi-hole.local`. Note also `CN=k3s` — meaningless as an identity, exactly as described above.
 
-**Use `-servername` when one address serves many certificates.** Without it, `s_client` sends no SNI and the server returns its default certificate, which may not be the one you're debugging. Irrelevant for a single-cert API server; it changes the answer entirely on an ingress controller or a shared reverse proxy.
+**Use `-servername` when one address serves many certificates:** without it, `s_client` sends no SNI and the server returns its default certificate, which may not be the one we're debugging. Irrelevant for a single-cert API server; it changes the answer entirely on an ingress controller or a shared reverse proxy.
 
-## The escape hatch, and why to skip it
+## Turning verification off, and why not to
 
 All of this can be sidestepped with `insecure-skip-tls-verify: true` in the kubeconfig, or `k3d kubeconfig get --insecure`. It works.
 

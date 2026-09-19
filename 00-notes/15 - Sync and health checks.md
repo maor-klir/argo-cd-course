@@ -28,7 +28,7 @@ Three possible values:
 | `OutOfSync` | the live state does not match — configuration drift, or a newer commit in Git |
 | `Unknown` | the comparison could not be made at all, e.g. the repository is unreachable |
 
-**`Progressing` is not a sync status:** it is a *health* value. While a sync is running you will see movement in the UI, but that comes from the operation phase and from health transitions — the sync status field itself only ever holds one of the three values above.  
+**`Progressing` is not a sync status:** it is a *health* value. While a sync is running we will see movement in the UI, but that comes from the operation phase and from health transitions — the sync status field itself only ever holds one of the three values above.  
 Argo CD's built-in notification trigger `on-sync-status-unknown` fires on *"Application status is 'Unknown'"*, which is the third value in the same set.
 
 Read it directly:
@@ -65,7 +65,7 @@ PersistentVolumeClaim
 Argo CD Application
 ```
 
-Anything outside that list — most custom resources — reports `Healthy` by default unless you teach Argo CD how to judge it.  
+Anything outside that list — most custom resources — reports `Healthy` by default unless we teach Argo CD how to judge it.  
 Custom checks are written in **Lua** and configured in the `argocd-cm` ConfigMap under `resource.customizations.health.<group>_<kind>`, or contributed upstream into `resource_customizations/`.  
 Standard Lua libraries are disabled unless enabled per kind via `resource.customizations.useOpenLibs.<group>_<kind>`.
 
@@ -115,7 +115,7 @@ This is the reconciliation handoff made visible: Argo CD owns the two objects it
 
 ## Refresh: recomputing the comparison
 
-Sync status is not worked out at the moment you look at it — it is the stored result of the last comparison. **Refresh** is the operation that re-runs that comparison: officially, *"compare the latest code in Git with the live state. Figure out what is different."*
+Sync status is not worked out at the moment we look at it — it is the stored result of the last comparison. **Refresh** is the operation that re-runs that comparison: officially, *"compare the latest code in Git with the live state. Figure out what is different."*
 
 **A refresh changes nothing in the cluster:** it only updates what Argo CD believes about it. Refresh looks; sync acts. An app can be refreshed a hundred times and stay `OutOfSync` forever.
 
@@ -168,9 +168,9 @@ So a plain refresh answers *"has the cluster or the revision changed?"*, while a
 
 ### When to use which
 
-**Use a plain refresh** for essentially everything — you pushed a commit and do not want to wait for the poll, or you changed something in the cluster and want the status updated now. This is the UI's **Refresh** button.
+**Use a plain refresh** for essentially everything — we pushed a commit and do not want to wait for the poll, or we changed something in the cluster and want the status updated now. This is the UI's **Refresh** button.
 
-**Reach for a hard refresh** only when you have reason to believe the cached render no longer matches what the repository would produce:
+**Reach for a hard refresh** only when we have reason to believe the cached render no longer matches what the repository would produce:
 
 | Situation | Why a plain refresh is not enough |
 |---|---|
@@ -259,4 +259,4 @@ apps   Deployment  default    guestbook-ui  Synced  Healthy  deployment.apps/gue
 
 Note the two columns: `STATUS` is sync, `HEALTH` is health, reported independently per resource — the same split this whole note is about.
 
-The `--core` flag there makes the CLI talk to Kubernetes directly instead of `argocd-server`, so this works with no port-forward and no login. How the CLI connects, what core mode does to your config, and how to switch back: **16 - The Argo CD CLI and core mode**.
+The `--core` flag there makes the CLI talk to Kubernetes directly instead of `argocd-server`, so this works with no port-forward and no login. How the CLI connects, what core mode does to our config, and how to switch back: **16 - The Argo CD CLI and core mode**.

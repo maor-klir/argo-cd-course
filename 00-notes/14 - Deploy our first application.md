@@ -9,8 +9,8 @@ Bootstrapping one `Application`, watching it report `OutOfSync`, and syncing it.
 Three layers, and it is worth keeping them straight:
 
 ```text
-guestbook-app.yaml              ← you apply this once, by hand
-  └── points at: lm-academy/argocd-example-apps @ HEAD, path guestbook/
+guestbook-app.yaml              ← we apply this once, by hand
+  └── points at: maor-klir/argocd-example-apps @ HEAD, path guestbook/
         ├── guestbook-ui-deployment.yaml   393 B
         └── guestbook-ui-svc.yaml          141 B
               └── become: Deployment + Service in the `default` namespace
@@ -23,7 +23,7 @@ The two manifests in the repo are deliberately minimal:
 | `guestbook-ui-deployment.yaml` | `Deployment` — 1 replica, image `gcr.io/google-samples/gb-frontend:v5`, `containerPort: 80` |
 | `guestbook-ui-svc.yaml` | `Service` — ClusterIP, port 80 → targetPort 80, selector `app: guestbook-ui` |
 
-You never apply those two yourself. That is Argo CD's job from here on.
+We never apply those two ourselves. That is Argo CD's job from here on.
 
 ## The Application manifest
 
@@ -36,7 +36,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/lm-academy/argocd-example-apps.git
+    repoURL: https://github.com/maor-klir/argocd-example-apps.git
     targetRevision: HEAD
     path: guestbook
   destination:
@@ -76,14 +76,14 @@ kubectl apply --dry-run=server -f guestbook-app.yaml
 | Applies server-side defaulting | no | yes |
 | Persists to etcd | no | no |
 
-**Client mode is not offline:** point kubectl at a dead endpoint and it fails before it can tell you anything about your file.
+**Client mode is not offline:** point kubectl at a dead endpoint and it fails before it can tell us anything about our file.
 
 ```text
 error: error validating "app.yaml": failed to download openapi:
 Get "https://127.0.0.1:1/openapi/v2": dial tcp 127.0.0.1:1: connect: connection refused
 ```
 
-It needs the cluster for two things: the OpenAPI schema it validates shape against, and the live object it merges your file into. `--validate=false` skips the first.
+It needs the cluster for two things: the OpenAPI schema it validates shape against, and the live object it merges our file into. `--validate=false` skips the first.
 
 **The output is often identical, so it is not the differentiator:** running both modes against the already-deployed `guestbook` app produced byte-identical YAML, 111 lines each. Both fetch the live object and show the merge result.
 
@@ -121,14 +121,14 @@ They combine freely. Everything below was checked with `--server-side --dry-run=
 | Where the merge happens | in kubectl | in the API server |
 | Prior state tracked in | the `last-applied-configuration` annotation | `metadata.managedFields` |
 | Granularity | whole object, as one blob | per field, per manager |
-| Sent over the wire | a computed patch | your entire object |
+| Sent over the wire | a computed patch | our entire object |
 | Another writer owns the field | silently overwritten | rejected, naming field and owner |
-| Removing a field from your manifest | deleted, if the annotation recorded you setting it | deleted or reset to default, if no other manager owns it |
+| Removing a field from our manifest | deleted, if the annotation recorded us setting it | deleted or reset to default, if no other manager owns it |
 | Recorded operation | `Update` | `Apply` |
 
 #### Client-side: a three-way merge inside kubectl
 
-kubectl computes the patch locally from three inputs — your file, the live object, and an annotation recording what you last applied. That annotation is a **complete copy of the manifest, stored inside the object it describes**:
+kubectl computes the patch locally from three inputs — our file, the live object, and an annotation recording what we last applied. That annotation is a **complete copy of the manifest, stored inside the object it describes**:
 
 ```bash
 kubectl -n argocd get app guestbook \
@@ -160,11 +160,11 @@ manager=argocd-application-controller op=Update   owns: status
 
 Three writers on one object: the bootstrap `kubectl apply`, the API server acting on a UI sync, and the controller writing `status`. The two Argo CD managers **co-own** `status`, which is legal — shared ownership is only a problem when they disagree on a value.
 
-Every operation reads `Update`, not `Apply` — nothing here used server-side apply. That column is how you tell the two strategies apart on a live object.
+Every operation reads `Update`, not `Apply` — nothing here used server-side apply. That column is how we tell the two strategies apart on a live object.
 
-**`-o json` hides `managedFields` unless you ask:** `--show-managed-fields` is required, since kubectl started suppressing the block to keep output readable.
+**`-o json` hides `managedFields` unless we ask:** `--show-managed-fields` is required, since kubectl started suppressing the block to keep output readable.
 
-#### Conflicts are the difference you actually feel
+#### Conflicts are the difference we actually feel
 
 Applying as a *different* manager, with a *different* value for a field someone else owns:
 
@@ -190,8 +190,8 @@ Three ways out of a conflict:
 | Resolution | How |
 |---|---|
 | Take ownership | re-run with `--force-conflicts` — ownership transfers and the field is removed from other managers' entries |
-| Give up the field | remove it from your manifest so you stop claiming it |
-| Co-own it | change your value to match the server's — you then share ownership, and any later change by either party conflicts |
+| Give up the field | remove it from our manifest so we stop claiming it |
+| Co-own it | change our value to match the server's — we then share ownership, and any later change by either party conflicts |
 
 Matching values is also why an identical re-apply produces no conflict at all: setting a field to the value it already has is never a conflict, whoever owns it.
 
@@ -217,7 +217,7 @@ kubectl apply -f guestbook-app.yaml
 application.argoproj.io/guestbook created
 ```
 
-This is a **one-time bootstrap**. It is the last time you hand-apply anything for this app: from now on you change Git, and Argo CD moves the cluster. The `Application` manifest itself belongs in Git too, even though it was applied by hand — that is what makes the setup reproducible on a rebuilt cluster.
+This is a **one-time bootstrap**. It is the last time we hand-apply anything for this app: from now on we change Git, and Argo CD moves the cluster. The `Application` manifest itself belongs in Git too, even though it was applied by hand — that is what makes the setup reproducible on a rebuilt cluster.
 
 ## It lands `OutOfSync`, and that is correct
 
@@ -260,13 +260,13 @@ Full treatment — both value sets, why `Progressing` is a health status and nev
 kubectl -n argocd describe application guestbook
 ```
 
-The `status` subtree is where Argo CD writes what it has worked out — none of it is yours to edit:
+The `status` subtree is where Argo CD writes what it has worked out — none of it is ours to edit:
 
 | Field | Holds |
 |---|---|
 | `status.sync` | current sync status and the revision compared against |
 | `status.health` | current health status |
-| `status.resources` | every resource the app manages, each with its own sync and health |
+| `status.resources` | every resource the app manages, each with its own **sync** status — per-resource health is not here by default (**15 - Sync and health checks**) |
 | `status.conditions` | errors and warnings — the first place to look when something is wrong |
 | `status.operationState` | the result of the last sync, including failure messages |
 | `status.history` | past revisions, for rollback |
@@ -322,13 +322,13 @@ Reach the UI through a port-forward:
 kubectl -n default port-forward svc/guestbook-ui 8081:80
 ```
 
-Then open `http://localhost:8081`. The `svc/` prefix matters — `port-forward` accepts `pod/`, `svc/` or `deployment/`, and defaults to a pod if you give a bare name.
+Then open `http://localhost:8081`. The `svc/` prefix matters — `port-forward` accepts `pod/`, `svc/` or `deployment/`, and defaults to a pod if we give a bare name.
 
 ## `HEAD` is a rolling pointer
 
 `targetRevision: HEAD` resolves to the latest commit on the repository's default branch, *at the moment Argo CD checks*. Push a commit and the app goes `OutOfSync` on its own — nothing was applied, but the target moved underneath it.
 
-That is convenient in a lab and wrong in production, where you want a deployment to be reproducible:
+That is convenient in a lab and wrong in production, where we want a deployment to be reproducible:
 
 | `targetRevision` | Resolves to | Reproducible? |
 |---|---|---|
@@ -338,7 +338,7 @@ That is convenient in a lab and wrong in production, where you want a deployment
 | `9f3c1a2…` (commit SHA) | exactly that commit | yes — immutable |
 | `1.2.*` (Helm chart) | newest chart matching the range | no — semver range |
 
-Argo CD polls Git roughly every three minutes by default, so "immediately" means "within a few minutes" unless a webhook is configured.
+Argo CD re-checks Git every two to three minutes by default — a `120s` reconciliation timeout plus up to `60s` of jitter — so "immediately" means "within a few minutes" unless a webhook is configured.
 
 ## The same Application, built from the UI
 
@@ -360,9 +360,9 @@ Nothing new is available there; it is a different way to fill in the same fields
 | Namespace | `destination.namespace` | not created unless `CreateNamespace=true` |
 | Directory Recurse | `source.directory.recurse` | **off by default** — only files at the root of `path` are read |
 
-**Directory Recurse is worth understanding before you need it:** with it off, only manifests sitting directly in `path` are picked up, and anything in a subdirectory is silently ignored. The guestbook path is flat, so it makes no difference here. Note also that directory-type sources are for *plain* manifests only — Argo CD fails to render if it finds Helm or Kustomize files while `directory:` is set.
+**Directory Recurse is worth understanding before we need it:** with it off, only manifests sitting directly in `path` are picked up, and anything in a subdirectory is silently ignored. The guestbook path is flat, so it makes no difference here. Note also that directory-type sources are for *plain* manifests only — Argo CD fails to render if it finds Helm or Kustomize files while `directory:` is set.
 
-**The form does not persist a YAML file:** it creates the `Application` in the cluster directly, which leaves nothing in Git and defeats the point. If you do build one in the UI, export it afterwards:
+**The form does not persist a YAML file:** it creates the `Application` in the cluster directly, which leaves nothing in Git and defeats the point. If we do build one in the UI, export it afterwards:
 
 ```bash
 kubectl -n argocd get app guestbook -o yaml > guestbook-app.yaml

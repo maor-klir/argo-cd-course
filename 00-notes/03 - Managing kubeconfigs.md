@@ -17,7 +17,7 @@ Three independent lists plus a pointer. Everything else follows from this shape:
 
 ```yaml
 contexts:
-  - name: k3d-argocd          # the name you pass to --context
+  - name: k3d-argocd          # the name we pass to --context
     context:
       cluster: k3d-argocd     # -> an entry in clusters:
       user: admin@k3d-argocd  # -> an entry in users:
@@ -41,7 +41,7 @@ Two possible arrangements:
 | **In-place merge** | `~/.kube/config` itself | merge into it, compounding forever | hand-edit YAML |
 | **Derived config** (used here) | per-cluster files in `~/.kube/cluster_configs/` | drop in a file, re-merge | `rm` the file, re-merge |
 
-The second treats `~/.kube/config` as a **build artifact** you can delete and regenerate at any time. Layout follows [this netdevops.me post](https://netdevops.me/2024/managing-multiple-kubeconfigs-by-merging-them/), with fixes for three hazards it doesn't cover.
+The second treats `~/.kube/config` as a **build artifact** we can delete and regenerate at any time. Layout follows [this netdevops.me post](https://netdevops.me/2024/managing-multiple-kubeconfigs-by-merging-them/), with fixes for three hazards it doesn't cover.
 
 ```text
 ~/.kube/
@@ -60,20 +60,20 @@ The second treats `~/.kube/config` as a **build artifact** you can delete and re
 
 `kubectl config view --flatten` collapses every file in `KUBECONFIG` into one document. Four rules matter.
 
-**1. First-wins on name collisions, and it is silent.** Verified with two files both defining a context named `dup`:
+**1. First-wins on name collisions, and it is silent:** verified with two files both defining a context named `dup`:
 
 ```bash
 KUBECONFIG=a.yaml:b.yaml kubectl config view --flatten   # dup -> cluster c-a
 KUBECONFIG=b.yaml:a.yaml kubectl config view --flatten   # dup -> cluster c-b
 ```
 
-Exit code 0, nothing on stderr, no warning. The losing context vanishes without a trace. `find` returns no guaranteed order, so **always `sort`** — otherwise which cluster you reach can change between runs.
+Exit code 0, nothing on stderr, no warning. The losing context vanishes without a trace. `find` returns no guaranteed order, so **always `sort`** — otherwise which cluster we reach can change between runs.
 
-**2. Collisions are per-entry, not per-file.** In that same test both *clusters* (`c-a`, `c-b`) survived — only the colliding *context* was dropped, leaving one cluster present in the file but unreachable, because nothing pointed at it any more. A name clash discards individual entries, never a whole file.
+**2. Collisions are per-entry, not per-file:** in that same test both *clusters* (`c-a`, `c-b`) survived — only the colliding *context* was dropped, leaving one cluster present in the file but unreachable, because nothing pointed at it any more. A name clash discards individual entries, never a whole file.
 
-**3. `--flatten` inlines every certificate and key.** The output is self-contained and portable — and holds every cluster credential you own in one file. `chmod 600` is not optional.
+**3. `--flatten` inlines every certificate and key:** the output is self-contained and portable — and holds every cluster credential we own in one file. `chmod 600` is not optional.
 
-**4. `current-context` comes from the first file that sets one.** Since `--minify` writes it into every extracted file, a plain re-merge silently repoints you at whatever sorts first — here `k3d-argocd.yaml`. The script below captures and restores it.
+**4. `current-context` comes from the first file that sets one:** since `--minify` writes it into every extracted file, a plain re-merge silently repoints us at whatever sorts first — here `k3d-argocd.yaml`. The script below captures and restores it.
 
 ## Step 1 — one-time migration
 
@@ -121,7 +121,7 @@ Four deliberate choices, each fixing a real failure:
 
 - **`> config.new` then `mv`** — never redirect straight into `~/.kube/config`. The shell truncates the target *before* kubectl runs, so if that file is ever itself in `KUBECONFIG`, the redirect destroys it and kubectl reads an empty file. `mv` on the same filesystem is atomic.
 - **`| sort`** — deterministic precedence, given first-wins.
-- **`CUR` capture and restore** — stops a re-merge from silently switching your active cluster.
+- **`CUR` capture and restore** — stops a re-merge from silently switching our active cluster.
 - **backup every run** — cheap, and the only thing standing between a typo and losing prod credentials.
 
 ## Step 3 — adding a cluster
@@ -144,9 +144,9 @@ ssh host 'sudo cat /etc/rancher/k3s/k3s.yaml' > /tmp/new.yaml
 sed -i 's|https://127.0.0.1:6443|https://<host-ip>:6443|' /tmp/new.yaml
 ```
 
-k3s names its context `default` — **rename it before merging** or it will collide with every other k3s cluster you own. See Step 4.
+k3s names its context `default` — **rename it before merging** or it will collide with every other k3s cluster we own. See Step 4.
 
-**From a cloud provider or any other source:** whatever the tool hands you, the same three steps apply — validate, rename if generic, install.
+**From a cloud provider or any other source:** whatever the tool hands us, the same three steps apply — validate, rename if generic, install.
 
 Then, for any source:
 
@@ -163,7 +163,7 @@ Testing with `KUBECONFIG=` pointed at the standalone file proves the cluster wor
 
 ## Step 4 — rename generic context names
 
-Name the file after the context, and keep both distinctive. `default`, `kubernetes-admin@kubernetes` and `k3s-default` all collide the moment you own two clusters.
+Name the file after the context, and keep both distinctive. `default`, `kubernetes-admin@kubernetes` and `k3s-default` all collide the moment we own two clusters.
 
 ```bash
 KUBECONFIG=/tmp/new.yaml kubectl config rename-context default k3s-lab
@@ -180,7 +180,7 @@ sed -i 's/^\( *name: \)default$/\1k3s-lab/' /tmp/new.yaml
 
 ```bash
 kubectl config get-contexts                       # all clusters present?
-kubectl config current-context                    # still where you expect?
+kubectl config current-context                    # still where we expect?
 kubectl --context=<new> get nodes                 # reachable THROUGH the merged file
 ```
 
@@ -196,13 +196,13 @@ kubectl --context=k3s-qa get pods         # one-off, without switching
 
 `--context` for a single command is safer than switching and forgetting to switch back — especially with a prod cluster in the same config.
 
-Pin a default namespace to the active context so `-n argocd` stops being something you have to remember:
+Pin a default namespace to the active context so `-n argocd` stops being something we have to remember:
 
 ```bash
 kubectl config set-context --current --namespace=argocd
 ```
 
-This edits `~/.kube/config`, which is a generated file here — so make the same change in `cluster_configs/<name>.yaml` if you want it to survive the next merge.
+This edits `~/.kube/config`, which is a generated file here — so make the same change in `cluster_configs/<name>.yaml` if we want it to survive the next merge.
 
 ## Removing a cluster
 
@@ -213,7 +213,7 @@ rm ~/.kube/cluster_configs/k3d-argocd.yaml
 ~/.kube/merge.sh
 ```
 
-If you ever edit `~/.kube/config` directly instead, note that **removal takes three commands, and `delete-context` alone is not enough.** Verified: after deleting only the context, its cluster and user entries — credentials included — were still on disk.
+If we ever edit `~/.kube/config` directly instead, note that **removal takes three commands, and `delete-context` alone is not enough.** Verified: after deleting only the context, its cluster and user entries — credentials included — were still on disk.
 
 ```bash
 kubectl config delete-context k3s-qa

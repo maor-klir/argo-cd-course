@@ -60,7 +60,7 @@ kubectl get crd applications.argoproj.io \
 ["destination","project"]
 ```
 
-**`project` is required, not optional:** omitting it fails validation with `spec.project: Required value`. It is often described as defaulting to `default`, and the reason is that `project: ""` *is* accepted and resolves to the `default` project — but the key itself must be present. Write `project: default` explicitly. The `default` project is created for you at install time.
+**`project` is required, not optional:** omitting it fails validation with `spec.project: Required value`. It is often described as defaulting to `default`, and the reason is that `project: ""` *is* accepted and resolves to the `default` project — but the key itself must be present. Write `project: default` explicitly. The `default` project is created for us at install time.
 
 **`source` is absent from that required list for a specific reason:** an Application may use either a single `source` or a `sources` array for multi-source apps, so the schema cannot demand either one individually.
 
@@ -68,7 +68,7 @@ kubectl get crd applications.argoproj.io \
 
 The single most confusable thing about this CRD. They are two different clusters, and usually two different namespaces.
 
-- The **Application resource itself** lives wherever you create it — in the Argo CD cluster, in a namespace Argo CD watches.
+- The **Application resource itself** lives wherever we create it — in the Argo CD cluster, in a namespace Argo CD watches.
 - The **manifests from `spec.source`** are deployed to `spec.destination`, which can be an entirely different cluster.
 
 ```mermaid
@@ -164,8 +164,8 @@ Tool-specific blocks nest inside `source` — `helm`, `kustomize`, `directory`, 
 
 ## `spec.destination`
 
-```
-destination: { server | name , namespace }
+```text
+destination: { server | name, namespace }
 ```
 
 Three fields, and the schema marks none of them required, because `server` and `name` are alternatives:
@@ -180,7 +180,7 @@ Use one of `server` or `name`, not both.
 
 **`namespace` is a fallback, not an override:** it applies only to namespaced resources whose manifests do not already carry `metadata.namespace`. A manifest with its own namespace set wins, and cluster-scoped resources ignore the field entirely.
 
-The destination namespace is not created for you by default — that needs `CreateNamespace=true` in `syncOptions`.
+The destination namespace is not created for us by default — that needs `CreateNamespace=true` in `syncOptions`.
 
 ## `spec.syncPolicy`
 
@@ -210,7 +210,7 @@ syncPolicy:
 | `allowEmpty` | permit a sync that would delete every resource |
 | `enabled` | toggle automation without deleting the block |
 
-Both `prune` and `selfHeal` default to off, which surprises people: enabling `automated` alone gets you automatic *application* of new commits, but not deletion of removed resources, and not correction of manual `kubectl edit` changes.
+Both `prune` and `selfHeal` default to off, which surprises people: enabling `automated` alone gets us automatic *application* of new commits, but not deletion of removed resources, and not correction of manual `kubectl edit` changes.
 
 **`syncOptions`** is a list of string flags modifying sync behaviour. The ones worth knowing early:
 
@@ -283,4 +283,4 @@ kubectl explain application.spec.syncPolicy.automated
 argocd app get <name>                           # Argo CD's own view, incl. sync/health
 ```
 
-`kubectl explain` reads the schema actually installed, so it is always correct for the version you are running — unlike documentation for the current release.
+`kubectl explain` reads the schema actually installed, so it is always correct for the version we are running — unlike documentation for the current release.

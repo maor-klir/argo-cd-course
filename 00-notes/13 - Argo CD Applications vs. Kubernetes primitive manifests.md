@@ -4,8 +4,8 @@
 
 The word *application* does two jobs here, and they are not the same thing:
 
-- the **`Application`** resource — an Argo CD object that says where your manifests live and how to sync them
-- **your application** — the Deployments, Services and ConfigMaps that actually run your code
+- the **`Application`** resource — an Argo CD object that says where our manifests live and how to sync them
+- **our application** — the Deployments, Services and ConfigMaps that actually run our code
 
 They are both Kubernetes resources in the same cluster, which is exactly why they get confused. The distinction is worth nailing down once.
 
@@ -32,7 +32,7 @@ The only structural difference visible here is the API group: `Deployment` comes
 | | `Application` | Workload manifests |
 |---|---|---|
 | **Kind** | `Application` | `Deployment`, `Service`, `ConfigMap`, `Ingress`, … |
-| **Purpose** | a declarative **contract** for Argo CD to manage a set of manifests | the **definition** of the components that make up your running app |
+| **Purpose** | a declarative **contract** for Argo CD to manage a set of manifests | the **definition** of the components that make up our running app |
 | **Answers** | *Where* is the code? *Where* should it be deployed? *How* should it be synced? | *Which* image to run? *Which* ports to open? *How many* replicas? |
 | **Lives in** | the Argo CD namespace — `argocd` by convention | the target namespace — `guestbook-staging`, `guestbook-prod`, … |
 | **Reconciled by** | the Argo CD controllers | the Kubernetes controllers — Deployment controller, ReplicaSet controller, … |
@@ -85,7 +85,7 @@ Read the two together and the division is obvious: **there is no image, no repli
 
 That indirection is the whole design:
 
-- **Editing the `Application` never changes what runs**, only where Argo CD looks for it. Repoint `targetRevision` from `HEAD` to a tag and you have changed which commit is deployed — but you did so by changing a pointer, not a workload.
+- **Editing the `Application` never changes what runs**, only where Argo CD looks for it. Repoint `targetRevision` from `HEAD` to a tag and we have changed which commit is deployed — but we did so by changing a pointer, not a workload.
 - **Editing the manifests in Git changes what runs**, without touching the `Application` at all. Bump `replicas` to 5, commit, and the next sync applies it.
 - **The `Application` stays the same size as the app grows** — fifteen lines whether the path holds one manifest or two hundred.
 
@@ -175,7 +175,7 @@ data:
   application.instanceLabelKey: argocd.argoproj.io/instance
 ```
 
-That override ships in the official install manifests, so on a stock install `app.kubernetes.io/instance` is not the label in use even if you switch tracking to `label`.
+That override ships in the official install manifests, so on a stock install `app.kubernetes.io/instance` is not the label in use even if we switch tracking to `label`.
 
 **Label tracking is the legacy option, and the docs are direct about why:**
 
@@ -213,7 +213,7 @@ Three behaviours depend on it:
 
 Deleting a `Deployment` is unambiguous — the workload goes away, and if `selfHeal` is on, Argo CD puts it back.
 
-Deleting an `Application` has two possible outcomes, and which you get depends on a finalizer:
+Deleting an `Application` has two possible outcomes, and which we get depends on a finalizer:
 
 | | Behaviour |
 |---|---|
@@ -230,14 +230,14 @@ metadata:
 Non-cascading is the deliberate way to stop managing something with Argo CD while leaving it running.  
 Cascading has two propagation modes: **foreground** (the default — the `Application` is removed only after its resources are gone) and **background** (the `Application` disappears immediately and cleanup continues behind it).
 
-Worth internalising before the first `kubectl delete app`: without the finalizer you get an orphaned workload with nothing reconciling it, and with it you may delete a production namespace's contents in one command.
+Worth internalising before the first `kubectl delete app`: without the finalizer we get an orphaned workload with nothing reconciling it, and with it we may delete a production namespace's contents in one command.
 
 ## Talking about them precisely
 
 The overloading is a real source of confusion in conversation and in commit messages. Two habits that help:
 
 - say **"the Application resource"** or **"the Argo CD app"** for the CRD, and **"the workload manifests"** or **"the app's manifests"** for the rest
-- watch the shortnames — `kubectl get apps` returns **Argo CD Applications**, not anything to do with your workloads. `app` and `apps` both belong to `argoproj.io`
+- watch the shortnames — `kubectl get apps` returns **Argo CD Applications**, not anything to do with our workloads. `app` and `apps` both belong to `argoproj.io`
 
 ## Verify
 

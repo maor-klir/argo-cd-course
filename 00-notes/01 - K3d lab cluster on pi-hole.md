@@ -19,8 +19,8 @@ k3d is not a Kubernetes distribution — it's a launcher that runs **k3s inside 
 
 Two consequences drive most of what follows:
 
-- **Nodes carry container IPs, not host IPs.** They sit on the k3d bridge network (`172.18.0.0/16`). Nothing inside the cluster knows the host answers to `192.168.0.2` on the LAN — which is why the API certificate needs help.
-- **The serverlb is a stream proxy.** It forwards TCP without terminating TLS, so it cannot paper over a certificate problem; the cert a client validates is the API server's own.
+- **Nodes carry container IPs, not host IPs:** they sit on the k3d bridge network (`172.18.0.0/16`). Nothing inside the cluster knows the host answers to `192.168.0.2` on the LAN — which is why the API certificate needs help.
+- **The serverlb is a stream proxy:** it forwards TCP without terminating TLS, so it cannot paper over a certificate problem; the cert a client validates is the API server's own.
 
 The server/agent split also explains why arguments need a node filter: `k3s server` and `k3s agent` are different subcommands accepting different flags.
 
@@ -96,9 +96,9 @@ That flag has three grammars nested inside each other — see *The `--k3s-arg` s
 
 **`--api-port 0.0.0.0:6443`** publishes the API on every host interface instead of loopback only. It fixes *reachability* and leaves *identity* broken.
 
-**The two `--tls-san` values** fix identity. k3s mints its serving certificate on first boot from addresses it can work out for itself, and the host's LAN address isn't one of them. IP and DNS SANs are not interchangeable, so both forms are passed — full reasoning in **02 - TLS SANs**. Certificates are minted **once**: adding a SAN to a running cluster does nothing, so list every address you might plausibly use up front.
+**The two `--tls-san` values** fix identity. k3s mints its serving certificate on first boot from addresses it can work out for itself, and the host's LAN address isn't one of them. IP and DNS SANs are not interchangeable, so both forms are passed — full reasoning in **02 - TLS SANs**. Certificates are minted **once**: adding a SAN to a running cluster does nothing, so list every address we might plausibly use up front.
 
-**`--disable=traefik`** because Pi-hole owns host 80/443. k3d doesn't map those unless asked, so there's no hard conflict — but disabling it removes the trap and keeps the Argo CD resource tree free of an app you never deployed.
+**`--disable=traefik`** because Pi-hole owns host 80/443. k3d doesn't map those unless asked, so there's no hard conflict — but disabling it removes the trap and keeps the Argo CD resource tree free of an app we never deployed.
 
 > **Never add `-p 80:80@loadbalancer` to this cluster.** That *would* collide with the Pi-hole UI.
 
@@ -189,9 +189,9 @@ WantedBy=multi-user.target
 
 Three syntaxes nested inside each other, plus shell quoting.
 
-**Layer 1 — `--k3s-arg` is an escape hatch.** k3d's own CLI covers k3d-level concerns: containers, networks, port mappings. `--tls-san` isn't one of those; it belongs to the k3s process inside the node container. **k3d 5.9.0 has no `--tls-san` flag of its own** (verified against its full `cluster create --help`), so `--k3s-arg` is the generic "append this string to the k3s command line" hatch. Same mechanism as `--disable=traefik`.
+**Layer 1 — `--k3s-arg` is a passthrough:** k3d's own CLI covers k3d-level concerns: containers, networks, port mappings. `--tls-san` isn't one of those; it belongs to the k3s process inside the node container. **k3d 5.9.0 has no `--tls-san` flag of its own** (verified against its full `cluster create --help`), so `--k3s-arg` is the generic "append this string to the k3s command line" passthrough. Same mechanism as `--disable=traefik`.
 
-**Layer 2 — bind flag and value with `=`, not a space.** Written as `--tls-san 192.168.0.2@server:0` it breaks: k3d hands k3s a single argv entry with a space inside it rather than a flag followed by its value, and k3s sees one unrecognizable token.
+**Layer 2 — bind flag and value with `=`, not a space:** written as `--tls-san 192.168.0.2@server:0` it breaks: k3d hands k3s a single argv entry with a space inside it rather than a flag followed by its value, and k3s sees one unrecognizable token.
 
 The constraint is specific to `--k3s-arg`, not to k3s. k3s itself accepts the space form when the two are genuinely separate argv elements — visible in the container's own command line, where k3d appends its own SANs that way:
 
@@ -202,7 +202,7 @@ The constraint is specific to `--k3s-arg`, not to k3s. k3s itself accepts the sp
 
 The first three are ours, passed via `--k3s-arg` and so in `=` form. The last two are k3d's own additions as separate elements. **Inside `--k3s-arg`, always use `=`.**
 
-**Layer 3 — `@server:0` is the node filter, and it's mandatory.** This part never reaches k3s; k3d splits it off and uses it to decide which node containers receive the argument. It matters because the containers aren't interchangeable — `--tls-san` configures the API server's certificate, which exists only on servers. Handing it to an agent means passing an unrecognized flag to a different subcommand.
+**Layer 3 — `@server:0` is the node filter, and it's mandatory:** this part never reaches k3s; k3d splits it off and uses it to decide which node containers receive the argument. It matters because the containers aren't interchangeable — `--tls-san` configures the API server's certificate, which exists only on servers. Handing it to an agent means passing an unrecognized flag to a different subcommand.
 
 | Filter | Meaning | Status |
 |---|---|---|
@@ -215,7 +215,7 @@ The first three are ours, passed via `--k3s-arg` and so in `=` form. The last tw
 
 Multi-filter form is `ARG@NODEFILTER[;@NODEFILTER]`, straight from `k3d cluster create --help`. Note the `@` repeats after the semicolon: `"--tls-san=192.168.0.2@server:0;@server:1"`.
 
-This cluster has one server, so `server:0` and `server:*` are equivalent. Prefer `server:*` — if you ever add servers for an HA experiment, the SAN follows automatically instead of landing on only the first.
+This cluster has one server, so `server:0` and `server:*` are equivalent. Prefer `server:*` — if we ever add servers for an HA experiment, the SAN follows automatically instead of landing on only the first.
 
 **Why two `--k3s-arg` flags instead of one:** each carries exactly one k3s argument. `--tls-san` is repeatable on the k3s side, one occurrence per SAN, so two SANs means two occurrences means two `--k3s-arg` flags.
 
@@ -235,13 +235,13 @@ ssh pi-hole "docker inspect k3d-argocd-server-0 -f '{{json .Config.Cmd}}'"
 $ ssh pi-hole 'k3d kubeconfig get argocd'
 bash: line 1: k3d: command not found
 $ ssh pi-hole            # then interactively
-maor@pi-hole:~$ k3d cluster ls     # works fine
+eaor@pi-hole:~$ k3d cluster ls     # works fine
 ```
 
 k3d is a **Homebrew** install at `/home/linuxbrew/.linuxbrew/bin/k3d`. Brew's `shellenv` is evaluated in the interactive rc only, so that directory is missing from the non-interactive PATH that `ssh host 'cmd'` gets. Same host, same user, different PATH. Fix: absolute path in ssh one-liners.
 
 Three follow-on traps this exposed:
 
-- **`command -v` over ssh silently under-reports.** An early survey concluded "k3d NOT_INSTALLED" on this host for exactly this reason. On checking, brew shadows only `k3d` here — `kubectl` v1.35.5 and `helm` v3.20.0 are identical interactively and non-interactively — but the failure mode is silent, so re-check anything brew might own with `bash -ic`.
+- **`command -v` over ssh silently under-reports:** an early survey concluded "k3d NOT_INSTALLED" on this host for exactly this reason. On checking, brew shadows only `k3d` here — `kubectl` v1.35.5 and `helm` v3.20.0 are identical interactively and non-interactively — but the failure mode is silent, so re-check anything brew might own with `bash -ic`.
 - **`find / -maxdepth 4 -name k3d -type f` missed it twice over:** the path is depth 5, and it's a symlink into `Cellar` so `-type f` excludes it. Use `-maxdepth 6` and drop `-type f` when hunting for a binary.
-- **The failed fetch still created a file.** `>` truncates its target before the command runs, so a 0-byte `k3d-argocd.yaml` landed in `cluster_configs/` and would have polluted the next merge — hence the temp-file dance in *Connect kubectl* above.
+- **The failed fetch still created a file:** `>` truncates its target before the command runs, so a 0-byte `k3d-argocd.yaml` landed in `cluster_configs/` and would have polluted the next merge — hence the temp-file dance in *Connect kubectl* above.
