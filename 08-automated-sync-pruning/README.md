@@ -1,14 +1,25 @@
-## 🎯 Lab Goal
+## Lab Goal
 
 Configure an Argo CD application to sync automatically when a change is detected in Git and to prune resources that are no longer defined in the source of truth.
 
-## 📝 Overview & Concepts
+## Overview & Concepts
 
 A truly automated GitOps workflow doesn't require manual intervention. In this lab, you will enable two crucial sync policies on your `guestbook` application: `automated` and `prune`. The `automated` policy will tell Argo CD to automatically apply changes from Git without you needing to click "Sync". The `prune` policy will ensure that if you delete a manifest from your Git repository, Argo CD will automatically delete the corresponding resource from the cluster.
 
 You will test this by first adding a new `ConfigMap` to your Helm chart and watching it get deployed automatically. Then, you will delete the `ConfigMap` manifest from the chart and observe as Argo CD prunes it from the cluster, keeping your environment perfectly in sync with Git.
 
-## 📋 Lab Tasks
+### Pruning Only Happens During a Sync
+
+Pruning is not a background process that sweeps up orphaned resources on a timer. It is an action performed *during a sync operation*, which means enabling `prune` never retroactively deletes anything — it only changes what the next sync is allowed to do. Until a sync runs, the orphaned resource stays in the cluster and the application stays `OutOfSync`.
+
+That sync can arrive from either direction, and each reads its prune setting from a different place:
+
+- **Automated sync** uses `spec.syncPolicy.automated.prune`, which the schema scopes to automated sync specifically
+- **A manual sync** uses its own per-operation setting, supplied by `argocd app sync --prune` or the **Prune** checkbox in the UI
+
+The two do not substitute for each other: running `argocd app sync` by hand against an application whose policy sets `prune: true` still deletes nothing unless `--prune` is passed as well. This is also why, with `automated` turned off, enabling `prune` on its own has no visible effect — nothing ever triggers a sync to act on it.
+
+## Lab Tasks
 
 1.  Add a `syncPolicy` block to your `guestbook-app.yaml` manifest.
 2.  Inside the `syncPolicy`, set `automated` to an empty object `{}`.
@@ -25,12 +36,12 @@ You will test this by first adding a new `ConfigMap` to your Helm chart and watc
 13. Observe in the Argo CD UI as the `prune` policy takes effect, automatically deleting the `ConfigMap` from the cluster.
 14. Verify with `kubectl` that the `ConfigMap` is gone.
 
-## 📚 Helpful Resources
+## Helpful Resources
 
 - [Argo CD - Automated Sync Policy](https://argo-cd.readthedocs.io/en/stable/user-guide/auto_sync/)
 - [Kubernetes ConfigMaps Documentation](https://kubernetes.io/docs/concepts/configuration/configmap/)
 
-## 💭 Reflection Questions
+## Reflection Questions
 
 1. Why does automated sync not automatically remove resources when their manifests are deleted from Git, and what specific sync policy is required to enable this behavior?
 2. What could happen if you enable pruning on an application that shares a namespace with resources managed by other tools or teams, and how would you prevent accidental deletions?

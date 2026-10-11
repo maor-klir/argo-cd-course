@@ -28,6 +28,21 @@ Three possible values:
 | `OutOfSync` | the live state does not match — configuration drift, or a newer commit in Git |
 | `Unknown` | the comparison could not be made at all, e.g. the repository is unreachable |
 
+### Drift, and the two ways to get it
+
+**Configuration drift** is the gap between what the repository says should be running and what is actually running. `OutOfSync` is simply the name Argo CD gives that gap once it has measured it.
+
+The gap can open from either side, and the distinction matters more than it first appears:
+
+| The side that moved | What happened | Example |
+|---|---|---|
+| **The cluster** | a live object was changed outside Git | someone ran `kubectl edit` or `kubectl scale` |
+| **The repository** | a new commit changed the desired state | a merged pull request |
+
+Both produce the same `OutOfSync` status, and nothing in that field says which one occurred — the diff does. They are worth separating because the two automation switches address one cause each: automated sync acts when the repository moves, self-healing acts when the cluster moves. Neither covers the other. Both are in **31 - Automated sync, pruning and self-healing**.
+
+In the strict sense only the first row is drift — the cluster wandering away from its definition. The second is the system working as intended, waiting for a deployment. The word gets used loosely for both.
+
 **`Progressing` is not a sync status:** it is a *health* value. While a sync is running we will see movement in the UI, but that comes from the operation phase and from health transitions — the sync status field itself only ever holds one of the three values above.  
 Argo CD's built-in notification trigger `on-sync-status-unknown` fires on *"Application status is 'Unknown'"*, which is the third value in the same set.
 
