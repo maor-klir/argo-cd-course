@@ -1,8 +1,8 @@
-## 🎯 Lab Goal
+## Lab Goal
 
 Learn how to customize Helm chart deployments in Argo CD by setting custom values using different override methods, and understand the order of precedence when values conflict.
 
-## 📝 Overview & Concepts
+## Overview & Concepts
 
 One of the most powerful features of Helm charts is their ability to be configured through values. When deploying charts with Argo CD, you need to know how to override these default values to customize your deployments for different environments and use cases.
 
@@ -23,7 +23,7 @@ When the same value is defined in multiple places, Argo CD follows a strict orde
 
 This means that `parameters` will always win over `valuesObject`, which wins over `valueFiles`, which wins over the chart's default `values.yaml`.
 
-## 📋 Lab Tasks
+## Lab Tasks
 
 ### Part 1: Explore the Default Values
 
@@ -77,20 +77,20 @@ This means that `parameters` will always win over `valuesObject`, which wins ove
 3. Verify that only 1 replica is running now
 4. Observe that the `parameters` value (1) overrode the `valuesObject` value (2)
 
-## 📚 Helpful Resources
+## Helpful Resources
 
 - [Argo CD - Helm Values Documentation](https://argo-cd.readthedocs.io/en/stable/user-guide/helm/#values-files)
 - [Helm Values Documentation](https://helm.sh/docs/chart_template_guide/values_files/)
 - [Argo CD Application Specification](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#applications)
 
-## 💡 Best Practices
+## Best Practices
 
 - **Use `valueFiles`** for environment-specific configurations (dev, staging, prod)
 - **Use `valuesObject`** for structured overrides that should be visible in the Application manifest
 - **Use `parameters`** sparingly, typically for single values that need to override everything else
 - Remember the precedence order when troubleshooting unexpected values
 
-## 💭 Reflection Questions
+## Reflection Questions
 
 1. Why is understanding the precedence order (chart defaults → valueFiles → valuesObject → parameters) critical when troubleshooting why a particular value isn't being applied as expected?
 2. In what scenarios would you choose `valueFiles` over `valuesObject`, and what are the trade-offs between storing configuration in Git files versus inline in the Application manifest?
