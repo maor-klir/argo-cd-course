@@ -28,6 +28,15 @@ Three possible values:
 | `OutOfSync` | the live state does not match — configuration drift, or a newer commit in Git |
 | `Unknown` | the comparison could not be made at all, e.g. the repository is unreachable |
 
+**`Progressing` is not a sync status:** it is a *health* value. While a sync is running we will see movement in the UI, but that comes from the operation phase and from health transitions — the sync status field itself only ever holds one of the three values above.  
+Argo CD's built-in notification trigger `on-sync-status-unknown` fires on *"Application status is 'Unknown'"*, which is the third value in the same set.
+
+Read it directly:
+
+```bash
+kubectl -n argocd get app guestbook -o jsonpath='{.status.sync.status}'
+```
+
 ### Drift, and the two ways to get it
 
 **Configuration drift** is the gap between what the repository says should be running and what is actually running. `OutOfSync` is simply the name Argo CD gives that gap once it has measured it.
@@ -43,14 +52,31 @@ Both produce the same `OutOfSync` status, and nothing in that field says which o
 
 In the strict sense only the first row is drift — the cluster wandering away from its definition. The second is the system working as intended, waiting for a deployment. The word gets used loosely for both.
 
-**`Progressing` is not a sync status:** it is a *health* value. While a sync is running we will see movement in the UI, but that comes from the operation phase and from health transitions — the sync status field itself only ever holds one of the three values above.  
-Argo CD's built-in notification trigger `on-sync-status-unknown` fires on *"Application status is 'Unknown'"*, which is the third value in the same set.
+### Fields Git never declared are not drift
 
-Read it directly:
+The comparison behind `OutOfSync` covers the fields the desired manifest declares. Anything else on the live object — whoever put it there — sits outside it.
 
-```bash
-kubectl -n argocd get app guestbook -o jsonpath='{.status.sync.status}'
+**The cluster stores more than it is given:** the guestbook chart renders a Service with three spec keys. Switching it to `NodePort` and submitting that manifest through a server-side dry run shows what the API server would keep:
+
+```text
+rendered by the chart    ports, selector, type
+returned by the API      clusterIP, clusterIPs, externalTrafficPolicy, internalTrafficPolicy,
+                         ipFamilies, ipFamilyPolicy, ports, selector, sessionAffinity, type
+                         + nodePort 32769 allocated inside ports
 ```
+
+Seven spec keys appear that nobody wrote. Unset optional fields are filled with defaults on admission, and identifiers such as the cluster IP and the node port are allocated.
+
+**`externalTrafficPolicy` arrives with the Service type, not with the chart:** it governs traffic arriving on a Service's externally-facing addresses, so it is defaulted for `NodePort` and `LoadBalancer` and left unset for `ClusterIP` — none of the ten `ClusterIP` Services in this cluster carry it, the guestbook Service included now that it is back to `ClusterIP`. The field's own schema describes both values:
+
+| Value | Behaviour |
+|---|---|
+| `Cluster` — the default | *"routes traffic to all endpoints"*; a node port can forward to a pod on any node, masquerading the client's source IP on the way |
+| `Local` | *"preserves the source IP of the traffic by routing only to endpoints on the same node as the traffic was received on (dropping the traffic if there are no local endpoints)"* |
+
+**None of it registers as drift, from either source:** the live Service carries server-populated fields such as `clusterIP`, `internalTrafficPolicy` and `sessionAffinity` while the application reports `Synced`. Fields added by hand behave the same way — an annotation applied with `kubectl annotate` to the tracked Deployment was re-compared within the same second and still left the application `Synced`, as recorded in **31 - Automated sync, pruning and self-healing**.
+
+So `Synced` means every field Git declares holds its declared value, not that the live object is identical to the manifest. The one exception runs the other way: a field Git declared once and later dropped is still recorded in the last-applied state, so removing it *is* a change — the three-way merge in **14 - Deploy our first application**.
 
 ## Health status
 

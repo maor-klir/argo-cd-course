@@ -105,6 +105,8 @@ Automated sync watches the repository. It does not watch the cluster:
 
 So a `kubectl edit` against a live Deployment leaves the application `OutOfSync` and nothing acts on it, because no new revision ever appeared. `selfHeal: true` closes that: a change to a tracked resource is reverted to what the repository says.
 
+**Detection is event-driven, not polled:** the controller watches the resources it tracks, and *"By default, an Argo CD Application is refreshed every time a resource that belongs to it changes."* A `kubectl scale` is noticed as it happens, not at the next two-to-three-minute reconciliation — that timer, covered in **15 - Sync and health checks**, governs how often the repository is re-read. The near-instant revert comes from the watch; the backoff below only decides how soon a *repeated* attempt follows.
+
 **Retries are spaced by exponential backoff, not a fixed interval:** repeated self-heal attempts would otherwise fight a failing resource at full speed. This install's controller exposes the timings:
 
 | Flag | Default here |
@@ -116,7 +118,62 @@ So a `kubectl edit` against a live Deployment leaves the application `OutOfSync`
 
 Documentation for the current release describes a flat *"self-heal timeout (5 seconds by default)"* on `--self-heal-timeout-seconds`. The binary installed here carries the backoff trio instead, with that flag left without a default — worth reading from the controller rather than the docs when the exact timing matters.
 
-**Self-healing and live debugging do not mix:** a value changed in the cluster to test something is reverted within seconds. The practical pattern is to turn it off for the duration and back on afterwards, rather than fighting it.
+**Self-healing and live debugging do not mix:** a value changed in the cluster to test something is reverted within seconds. The practical pattern is to turn it off for the duration and back on afterwards, rather than fighting it:
+
+```bash
+argocd app set guestbook --self-heal=false     # suspend while debugging
+argocd app set guestbook --self-heal           # resume
+```
+
+Two things follow from doing it this way:
+
+- **Resuming reverts whatever is still changed:** debugging edits left in place are undone within seconds of switching back
+- **The switch lives on the live `Application`, not in the file:** re-applying `guestbook-app.yaml`, which still says `selfHeal: true`, turns self-healing straight back on mid-session
+
+### What self-healing does not do
+
+Self-healing re-applies the declared state of the resources it tracks. Most misreadings of it come from expecting more than that:
+
+| It does not | Because |
+|---|---|
+| write the live change back to Git | it only ever moves the cluster toward the repository, never the reverse |
+| fix a crashing workload | it enforces the *spec* Git declares, not health — restarting failed containers is the kubelet's job |
+| touch resources it does not track | the boundary is the tracking id, exactly as for pruning — an unrelated ConfigMap in the same namespace is invisible to it |
+| remove fields Git never declares | the comparison covers declared fields only — a hand-added label or annotation is not drift |
+| manage what Kubernetes created | ReplicaSets and Pods sit below the tracked set — a deleted Pod is replaced by its ReplicaSet, a deleted Deployment by self-healing |
+
+The second row is the `Synced` + `Degraded` case from **15 - Sync and health checks**. A bad image tag committed to Git leaves the cluster matching Git exactly, so there is no drift for self-healing to correct — the fix has to arrive as a commit.
+
+**Undeclared fields are left alone:** verified by annotating the tracked Deployment with `kubectl annotate ... test=1`. The application's `reconciledAt` matched the annotation's write time to the second — confirming the event-driven detection above — yet the Deployment stayed `Synced`, no sync ran, and the annotation was still in place afterwards.  
+Server-populated fields such as `clusterIP` or `externalTrafficPolicy` never register for the same reason, as worked through in **15 - Sync and health checks**: self-healing enforces what Git declares, not that the live object is identical to Git.
+
+### When another controller owns a field
+
+Self-healing cannot tell an operator's `kubectl scale` from a HorizontalPodAutoscaler's. Both change `spec.replicas`, and if the manifest declares replicas, both register as drift and both are reverted. Against an autoscaler that becomes a loop: it scales out, Argo CD scales back, it scales out again.
+
+The cleanest fix is a manifest that does not declare the field at all, where the chart allows it. Argo CD frames its own option as the fallback: *"In case it is impossible to fix the upstream issue, Argo CD allows you to optionally ignore differences of problematic resources."*
+
+```yaml
+spec:
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
+  syncPolicy:
+    syncOptions:
+      - RespectIgnoreDifferences=true
+```
+
+The two settings act at different stages, and the first is not enough on its own:
+
+| Setting | Stops |
+|---|---|
+| `ignoreDifferences` | the field registering as drift — so self-healing leaves it alone |
+| `RespectIgnoreDifferences=true` | a sync resetting it anyway, by *"calculating and pre-patching the desired state before applying it in the cluster"* |
+
+The documentation is explicit about why the second exists: *"By default, Argo CD uses the `ignoreDifferences` config just for computing the diff between the live and desired state which defines if the application is synced or not. However during the sync stage, the desired state is applied as-is."* Without it, the next commit-triggered sync writes Git's replica count straight over the autoscaler's.  
+It is also *"only effective when the resource is already created in the cluster"* — on first creation the declared value is applied unchanged.
 
 ## The switches are independent
 
@@ -125,10 +182,12 @@ Each combination is a real position, not a stepping stone to the next:
 | `automated` | `prune` | `selfHeal` | Behaviour |
 |---|---|---|---|
 | off | — | — | report only; every change is applied by hand |
-| on | off | off | commits deploy themselves; deletions and manual edits do not |
-| on | on | off | Git is authoritative for what exists, but manual edits survive |
+| on | off | off | commits deploy themselves; deleted manifests leave objects behind; manual edits last until the next sync |
+| on | on | off | Git is authoritative for what exists; manual edits last until the next sync |
 | on | off | on | manual edits are reverted, but deleted manifests leave objects behind |
 | on | on | on | the cluster tracks the repository in both directions |
+
+**Without `selfHeal`, a manual edit is not kept, only not reverted yet:** the application sits `OutOfSync`, and the next sync — a new commit landing, or someone syncing by hand — re-applies the manifests and overwrites the edit. That makes it an unreliable place to leave a debugging change, since it disappears whenever the next commit happens to land.
 
 The middle rows are where most applications sit. Full automation is a choice about blast radius, not a maturity level — an application sharing a namespace with resources other tools manage is a reason to leave `prune` off, or to scope it with `Prune=false`.
 
