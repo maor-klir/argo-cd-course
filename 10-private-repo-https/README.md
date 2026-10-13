@@ -17,7 +17,7 @@ In this lab, you'll create a private repository, generate a PAT from your Git pr
 3.  Copy the `helm-guestbook` chart from your `argocd-example-apps` fork into the new private repository
 4.  Commit and push the chart to your private repository
 5.  Generate a Personal Access Token (PAT) from your Git provider with appropriate permissions:
-    - The token needs read access to repositories
+    - Use a **fine-grained** token: under **Repository access** choose only your private repository, and under **Permissions** set **Contents** to **Read-only** — Metadata read access is added automatically, and nothing else is needed
     - Set an appropriate expiration date
     - **Save the token immediately** - you won't be able to see it again
 6.  In the Argo CD UI, navigate to Settings → Repositories
@@ -42,9 +42,11 @@ kubectl -n argocd create secret generic private-repo-https --dry-run=client -o y
   --from-literal=username=<your-git-username> \
   --from-literal=password="$TOKEN" \
 | kubectl label --local -f - argocd.argoproj.io/secret-type=repository -o yaml \
-| kubectl apply -f -
+| kubectl apply --server-side -f -
 unset TOKEN
 ```
+
+Only the last command talks to the cluster: the first builds the Secret locally (`kubectl create secret` cannot add labels itself), the second adds the label to it (`--local`, because the Secret does not exist yet), and `apply --server-side` creates it in one go. Use `--server-side` rather than plain `kubectl apply`, which would store a second copy of your token in a `last-applied-configuration` annotation.
 
 The `url` must be the same URL your `Application` uses in `repoURL`. Two more details decide whether Argo CD can use the Secret, and getting either wrong fails silently — the Secret is created, but the Application's error does not change:
 

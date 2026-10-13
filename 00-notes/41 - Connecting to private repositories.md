@@ -87,9 +87,13 @@ The label's value says what kind of credential the Secret holds:
 | `repo-creds` | a credential template applied to every repository under a URL prefix |
 | `cluster` | a destination cluster's connection details — the same mechanism, applied to clusters |
 
-**`type` says what is at the URL:** `git` for a Git repository, `helm` for a Helm chart repository. A Helm repository Secret *"must specify the `url`, `type` and `name` fields"*, so the same labelled-Secret pattern covers private chart repositories as well.
+**`type` says what is at the URL:** `git` for a Git repository, `helm` for a Helm chart repository. A Helm repository Secret *"must specify the `url`, `type` and `name` fields"*, so the same labelled-Secret pattern covers private chart repositories as well. For Git the key can be left out: Argo CD's API type defines `git` as the value assumed when it is empty or absent.
+
+**Not to be confused with the Secret's own `type`:** a top-level `type: Opaque` on the Secret is Kubernetes' classification, and the default when omitted. Choosing Kubernetes' dedicated `kubernetes.io/ssh-auth` Secret type instead does not help — the API server then requires a key named `ssh-privatekey`, rejecting the Secret with `data[ssh-privatekey]: Required value`, while Argo CD reads `sshPrivateKey`.
 
 **Argo CD does not follow redirects on repository URLs:** some hosts, *"notably GitLab"*, redirect a URL without the `.git` suffix, and *"Argo CD will **not** follow these redirects"*. Write repository URLs with `.git`, and use the same string in the Secret and the `Application`.
+
+**Matching is normalised, not character for character:** before comparing, Argo CD lowercases both URLs, strips a trailing `.git`, and treats the scp-style `git@github.com:owner/repo` and `ssh://git@github.com/owner/repo` as the same address. Credential-template prefixes are compared the same way. What it never reconciles is the transport — an HTTPS URL and an SSH URL for the same repository do not match.
 
 ## HTTPS: a username and a token
 
@@ -128,13 +132,27 @@ kubectl -n argocd create secret generic private-repo-https --dry-run=client -o y
   --from-literal=username=<git-username> \
   --from-literal=password="$TOKEN" \
 | kubectl label --local -f - argocd.argoproj.io/secret-type=repository -o yaml \
-| kubectl apply -f -
+| kubectl apply --server-side -f -
 unset TOKEN
 ```
 
-The pipeline sets the namespace and the label in the same step — the two things a bare `kubectl create secret` leaves out unless told. Typing the token straight into `--from-literal=password=…` works as well, but records it in shell history.
+The first two stages never contact the cluster — they run even against an unreachable API server:
 
-**Scope the token to the one repository, read-only:** syncing only ever reads from the repository. A fine-grained token limited to that repository's contents gives Argo CD exactly what it uses; anything broader is exposure with no benefit.
+| Stage | Why it is there |
+|---|---|
+| `create … --dry-run=client -o yaml` | builds the Secret and prints it instead of sending it — `kubectl create secret` has no flag for labels, so the object cannot be finished at this step |
+| `label --local -f -` | adds the label to that printed object; without `--local` it looks for a live Secret to patch, finds none, and fails with `NotFound` |
+| `apply --server-side -f -` | the only write — the Secret is created once, already labelled, in the right namespace |
+
+**The last stage is `apply --server-side`, not plain `apply`:** client-side apply stores a second, complete copy of the object — Secret values included — in its `kubectl.kubernetes.io/last-applied-configuration` annotation, the mechanism in **14 - Deploy our first application**.  
+Checked with a dummy value: plain `apply` leaves it decodable from the annotation, while server-side apply records only which fields it owns.  
+`kubectl create -f -` avoids the copy too, but fails on a second run, where server-side apply simply updates — which is what rotating a token needs.
+
+Typing the token straight into `--from-literal=password=…` works as well, but records it in shell history.
+
+**Scope the token to the one repository, read-only:** syncing only ever reads from the repository. On GitHub that means a fine-grained token with **Repository access** set to that one repository and a single permission, **Contents → Read-only**. Metadata read access comes with it automatically — GitHub's own example URL requests only `contents=read` and produces *"a token with `contents:read` and `metadata:read`"*.
+
+A classic token is a poor fit. Reaching a private repository needs its `repo` scope, and *"Your personal access token (classic) can access every repository that you can access"* — GitHub recommends fine-grained tokens instead. Either kind is capped by its owner, too: *"A token cannot grant additional access capabilities to a user"*, so it stops working the moment the owner loses access to the repository.
 
 ## SSH: a private key, and a deploy key on the other side
 

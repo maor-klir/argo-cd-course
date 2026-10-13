@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: git@github.com:lm-academy/argocd-course-private-repo-demo.git
+    repoURL: git@github.com:maor-klir/argocd-course-private-repo-demo.git
     path: helm-guestbook
     targetRevision: HEAD
   destination:
