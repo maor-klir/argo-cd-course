@@ -4,10 +4,10 @@ metadata:
   name: team-finance
   namespace: argocd
 spec:
-  description: Project for Team Finance with security guardrails
+  description: Project for the finance team with security guardrails
 
   sourceRepos:
-    - 'https://github.com/lm-academy/argocd-example-apps-labs.git'
+    - 'https://github.com/maor-klir/argocd-example-apps.git'
 
   destinations:
     - server: https://kubernetes.default.svc
