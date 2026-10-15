@@ -18,7 +18,7 @@ In this lab, you will write an `Application` manifest from scratch. You will com
     - **Path:** `guestbook`
 4.  Define the `spec.destination` field to deploy the application to the local cluster (`https://kubernetes.default.svc`) into the `default` namespace.
 5.  Apply the `Application` manifest to your cluster using `kubectl apply`.
-6.  Verify in the Argo CD UI that the `guestbook` application appears and successfully syncs.
+6.  Verify in the Argo CD UI that the `guestbook` application appears as `OutOfSync` and `Missing` — with no `syncPolicy`, Argo CD reports the difference and waits — then click **Sync** and watch it become `Synced` and `Healthy`.
 7.  Use `kubectl` to verify that the `guestbook` application's resources (Deployments, Services) are running in the `default` namespace.
 
 ## Helpful Resources

@@ -51,19 +51,17 @@ k3s sorts each `--tls-san` value into the right bucket by parsing it, so pass bo
 
 Wildcards also apply to DNS names only — there is no such thing as a wildcard IP SAN.
 
-## Certificates are minted once
+## Adding a SAN later
 
-The SAN list is baked in at generation time. Deciding six labs from now that we'd rather use a hostname means the existing certificate doesn't have it — and adding the flag to a running server changes nothing, because it finds a certificate already on disk and reuses it.
+**On k3s the API certificate is not fixed:** port 6443 is served by k3s's dynamic listener, whose certificate lives in the Secret `kube-system/k3s-serving` — `CN=k3s`, the subject read off the wire below — with each SAN recorded as a `listener.cattle.io/cn-*` annotation. The listener adds names while it runs, within `--tls-san-security` (default `true`), which refuses names *"not associated with the kubernetes apiserver service, server nodes, or values of the tls-san option"*. On plain k3s, adding a `--tls-san` and restarting the server is enough.
 
-Fixing after the fact means deleting the cert and key so they get regenerated. For k3s, inside the server container:
+The list really does move. On this cluster the Secret's annotations now also carry `172.18.0.4` and `172.18.0.5`, which the output captured further down does not show. Reading the annotations shows the SAN list without touching the key material:
 
 ```bash
-rm /var/lib/rancher/k3s/server/tls/serving-kube-apiserver.crt \
-   /var/lib/rancher/k3s/server/tls/serving-kube-apiserver.key
-# then restart k3s
+kubectl -n kube-system get secret k3s-serving -o jsonpath='{.metadata.annotations}'
 ```
 
-Doable, but recreating the cluster is usually less fuss. That is the argument for **listing every address we might plausibly use, up front** — LAN IP, hostname, mDNS name, VPN address, whatever the future looks like.
+**Under k3d it is a creation-time decision:** k3d passes k3s arguments only at `k3d cluster create`; `k3d cluster edit` changes port mappings and nothing else. A missing SAN therefore means recreating the cluster — the reason to **list every address we might plausibly use, up front**: LAN IP, hostname, mDNS name, VPN address, whatever the future looks like.
 
 ## Worked example: the k3s API server under k3d
 
@@ -128,8 +126,19 @@ Both custom SANs landed: `IP Address:192.168.0.2` and `DNS:pi-hole.local`. Note 
 
 ## Turning verification off, and why not to
 
-All of this can be sidestepped with `insecure-skip-tls-verify: true` in the kubeconfig, or `k3d kubeconfig get --insecure`. It works.
+All of this can be sidestepped with `insecure-skip-tls-verify: true` in the kubeconfig, or `--insecure-skip-tls-verify` on a single `kubectl` command. It works.
 
 It also disables **check 1 along with check 2** — the client stops verifying the CA signature entirely, not just the address match. Anything on the network path that can intercept the port could then present its own certificate and read an admin-credentialed session. Low probability on a home LAN, but `--tls-san` is one flag at creation time, so there is no reason to trade it away.
 
-The general shape of that trade is worth remembering: **the two checks are not separately switchable.** Every "skip verification" flag in every TLS client turns off identity *and* trust together. There is no option that keeps the CA check while relaxing the name check.
+The general shape of that trade is worth remembering: a "skip verification" flag turns off identity *and* trust together. None of them relaxes only the name check.
+
+**Choosing which name is checked keeps both checks on:** when the address we dial is missing from the SAN list but another name in it reaches the same server, the kubeconfig can name the one to verify against — *"TLSServerName is used to check server certificate. If TLSServerName is empty, the hostname used to contact the server is used."*
+
+```bash
+KUBECONFIG=~/.kube/cluster_configs/k3d-argocd.yaml \
+  kubectl config set-cluster k3d-argocd --tls-server-name=pi-hole.local
+```
+
+The connection still goes to `https://192.168.0.2:6443`, but the certificate is checked against `pi-hole.local` — and the CA signature is still verified.  
+Tested on this cluster: with `pi-hole.local` the request succeeds; with a name the certificate does not list, it fails with the usual `x509: certificate is valid for …` error.  
+It is the right tool when the name in the certificate does not resolve from where we are. The change goes in the per-cluster file, since `~/.kube/config` is regenerated (**03 - Managing kubeconfigs**).

@@ -166,13 +166,15 @@ Dropping `fullnameOverride` gives up on reusing the old objects. The chart rende
 |---|---|---|
 | Old objects | reused in place | deleted during sync |
 | Needs | `Replace` + `Force` for the Deployment | **Prune** enabled on the sync |
-| Downtime | the Deployment is recreated | the Deployment is recreated |
+| Downtime | the Deployment is recreated | the old Deployment is deleted before the new one is created — unless `PruneLast=true` |
 | Ends up with | objects named for the old scheme | objects named by the chart |
 | Worth it when | the names are referenced elsewhere — Ingresses, Services, dashboards | nothing outside the app depends on the names |
 
 Without prune the old objects stay behind, running and unmanaged, and have to be removed by hand.
 
-Neither route avoids recreating the Deployment. The choice is only about which name it ends up with.
+**Within one wave, prunes run before creates:** the sync engine deletes a wave's prune candidates first and applies its new objects after (sync engine source, `runTasks`), so the old Deployment's deletion starts before the new Deployment exists. `PruneLast=true` reverses that, pruning *"as a final, implicit wave of a sync operation, after the other resources have been deployed and become healthy"* — the new pods are serving before the old ones are removed.
+
+Neither route avoids recreating the Deployment. The choice is about which name it ends up with — and, with `PruneLast`, the rename route keeps the old pods running until the new ones are healthy.
 
 ## `valueFiles`
 
@@ -184,7 +186,7 @@ The alternative to embedding values is to point at files inside the chart:
         - values.yaml
 ```
 
-**The block nests under `helm`, not directly under `source`:** it is a Helm-specific setting, and `source.valueFiles` is silently not a field.
+**The block nests under `helm`, not directly under `source`:** it is a Helm-specific setting, and `source.valueFiles` is not a field — the API server rejects it with `strict decoding error: unknown field "spec.source.valueFiles"`. Only with validation switched off (`--validate=false`) does it get through, and then it is dropped silently.
 
 Listing `values.yaml` changes nothing on its own — a chart's own `values.yaml` is always the base layer, so naming it explicitly is a no-op that documents intent. Swapping in the other file is what has an effect:
 

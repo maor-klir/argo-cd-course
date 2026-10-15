@@ -1,4 +1,4 @@
-# Lab Goal
+## Lab Goal
 
 Access the Argo CD web UI and install the command-line interface (CLI) to gain full control over your Argo CD installation.
 
@@ -13,6 +13,18 @@ Argo CD is now running in our cluster, but by default, it's not exposed to the o
 3.  Log in to the Argo CD web UI in your browser using the `admin` username and the retrieved password.
 4.  Install the `argocd` CLI tool on your local machine.
 5.  Log in to the Argo CD API server using the `argocd` CLI.
+6.  Change the `admin` password.
+7.  Delete the `argocd-initial-admin-secret` Secret. The Getting Started guide is explicit: *"You should delete the `argocd-initial-admin-secret` from the Argo CD namespace once you changed the password. The secret serves no other purpose than to store the initially generated password in clear and can safely be deleted at any time."*
+
+## Commands
+
+```bash
+argocd admin initial-password -n argocd                       # task 1 — prints the generated password
+kubectl -n argocd port-forward svc/argocd-server 8080:443     # task 2 — leave it running; the UI is at https://localhost:8080
+argocd login localhost:8080 --username admin --insecure       # task 5 — --insecure because the server's certificate is self-signed
+argocd account update-password                                # task 6
+kubectl -n argocd delete secret argocd-initial-admin-secret   # task 7
+```
 
 ## Helpful Resources
 

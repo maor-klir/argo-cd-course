@@ -1,4 +1,4 @@
-#kubernetes #deletion #garbagecollection #finalizers #ownerreferences
+#kubernetes #propagation #policies #garbagecollection #finalizers
 
 # Propagation policies
 

@@ -33,7 +33,7 @@ The two do not substitute for each other: running `argocd app sync` by hand agai
 10. Observe in the Argo CD UI as the resource gets marked as non-existent, but is not immediately deleted.
 11. Enable pruning by changing the `automated` option from an empty object to `prune: true`.
 12. Apply the updated manifest to the cluster to update the application's settings.
-13. Observe in the Argo CD UI as the `prune` policy takes effect, automatically deleting the `ConfigMap` from the cluster.
+13. Notice that nothing is deleted yet. Automated sync runs once per commit — *"If the most recent successful sync in the history was already performed against the same commit-SHA and parameters, a second sync will not be attempted, unless `selfHeal` flag is set to true"* — and this commit has already been synced. Trigger the prune either by pushing a new commit, for example a change to `replicaCount`, or by syncing manually with **Prune** checked, and watch the `ConfigMap` get deleted.
 14. Verify with `kubectl` that the `ConfigMap` is gone.
 
 ## Helpful Resources

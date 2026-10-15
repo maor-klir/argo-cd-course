@@ -1,4 +1,4 @@
-# Lab Goal
+## Lab Goal
 
 Install the Argo CD controller and its components into the cluster using the official Helm chart, ensuring a specific, repeatable version is deployed.
 
@@ -11,7 +11,7 @@ We will use Helm, the standard Kubernetes package manager, to install Argo CD. T
 1.  Add the official Argo Project Helm repository to your local Helm client.
 2.  Update your Helm repositories to ensure you have the latest chart information.
 3.  Create a dedicated `argocd` namespace in your cluster.
-4.  Install the `argo-cd` Helm chart version `8.6.0` into the `argocd` namespace.
+4.  Install the `argo-cd` Helm chart version `10.2.2` into the `argocd` namespace, as a release named `argocd`.
 5.  Verify that all the Argo CD pods have been created and are in a `Running` state.
 
 ## Helpful Resources
@@ -31,51 +31,48 @@ We will use Helm, the standard Kubernetes package manager, to install Argo CD. T
 
 ## Installing Argo CD
 
-1. Adding the Argo Helm repository and make sure it's at its latest version (a no-op in this case)
+1. Add the Argo Helm repository and refresh it:
 
 ```bash
-~/repositories/github/maor-klir/argo-cd-course main*​
 helm repo add argo https://argoproj.github.io/argo-helm
-"argo" has been added to your repositories
-
-~/repositories/github/maor-klir/argo-cd-course main*​
-❯ helm repo update
-Hang tight while we grab the latest from your chart repositories...
-...Successfully got an update from the "argo" chart repository
-Update Complete. ⎈Happy Helming!⎈
-```
-2. Checking which Helm charts versions are available:
-
-```bash
-~/repositories/github/maor-klir/argo-cd-course main*​
-❯ helm search repo argo/argo-cd --versions
+helm repo update
 ```
 
-3. Applying the namespace manifest onto the cluster:
+2. List the available chart versions:
 
 ```bash
-~/repositories/github/maor-klir/argo-cd-course main*​
-❯ k apply -f argocd-ns.yaml
-namespace/argo-cd created
+helm search repo argo/argo-cd --versions
 ```
 
-4. Installing a specific chart version:
+3. Create the namespace from the manifest in this directory:
 
 ```bash
-~/repositories/github/maor-klir/argo-cd-course main*​
-❯ helm upgrade argo-cd argo/argo-cd --version 10.2.2 --install -n argo-cd
-Release "argo-cd" does not exist. Installing it now.
-NAME: argo-cd
-LAST DEPLOYED: Fri Sep  4 19:22:55 2026
-NAMESPACE: argo-cd
-STATUS: deployed
-REVISION: 1
-DESCRIPTION: Install complete
-TEST SUITE: None
-NOTES:
+kubectl apply -f argocd-ns.yaml
+```
+
+4. Install a pinned chart version — release `argocd` into namespace `argocd`:
+
+```bash
+helm upgrade argocd argo/argo-cd --version 10.2.2 --install -n argocd
+```
+
+Both names matter. The chart prefixes its resources with the release name unless that name already contains `argocd`, so a release called `argo-cd` produces `argo-cd-argocd-server` and friends instead of `argocd-server`. And every later lab assumes the `argocd` namespace: Applications are only honoured in Argo CD's own namespace, and the commands use `-n argocd`.
+
+```bash
+helm -n argocd list
+```
+
+```text
+NAME  	NAMESPACE	REVISION	UPDATED                                 	STATUS  	CHART         	APP VERSION
+argocd	argocd   	1       	2026-09-05 12:27:13.741501396 +0200 CEST	deployed	argo-cd-10.2.2	v3.4.6
+```
+
+The chart's install notes, as shown again by `helm -n argocd get notes argocd`:
+
+```text
 In order to access the server UI you have the following options:
 
-1. kubectl port-forward service/argo-cd-argocd-server -n argo-cd 8080:443
+1. kubectl port-forward service/argocd-server -n argocd 8080:443
 
     and then open the browser on http://localhost:8080 and accept the certificate
 
@@ -86,22 +83,24 @@ In order to access the server UI you have the following options:
 
 After reaching the UI the first time you can login with username: admin and the random password generated during the installation. You can find the password by running:
 
-kubectl -n argo-cd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
 
 (You should delete the initial secret afterwards as suggested by the Getting Started Guide: https://argo-cd.readthedocs.io/en/stable/getting_started/#4-login-using-the-cli)
 ```
-5. Verifying all pods are running:
+
+5. Verify that all the pods are running:
 
 ```bash
-~/repositories/github/maor-klir/argo-cd-course main*​ 2s
-❯ k -n argo-cd get po -w
-NAME                                                        READY   STATUS    RESTARTS   AGE
-argo-cd-argocd-application-controller-0                     1/1     Running   0          2m9s
-argo-cd-argocd-applicationset-controller-64b8db7fbd-bq8rw   1/1     Running   0          2m9s
-argo-cd-argocd-dex-server-59777968dd-6vmhr                  1/1     Running   0          2m9s
-argo-cd-argocd-notifications-controller-76d465d5b7-ghx6t    1/1     Running   0          2m9s
-argo-cd-argocd-redis-75759d788f-xstsr                       1/1     Running   0          2m9s
-argo-cd-argocd-repo-server-787659dc89-jjm9k                 1/1     Running   0          2m9s
-argo-cd-argocd-server-678bdcfd7d-988fp                      1/1     Running   0          2m9s
-^C
+kubectl -n argocd get pods
+```
+
+```text
+NAME                                               READY   STATUS    RESTARTS      AGE
+argocd-application-controller-0                    1/1     Running   3 (13d ago)   40d
+argocd-applicationset-controller-958cbb657-knk7w   1/1     Running   4 (13d ago)   40d
+argocd-dex-server-ffb674c4-fm95l                   1/1     Running   1 (13d ago)   21d
+argocd-notifications-controller-84b67cd59c-b72gg   1/1     Running   3 (13d ago)   40d
+argocd-redis-557bb4bb-2s8qv                        1/1     Running   4 (13d ago)   40d
+argocd-repo-server-7bf9495ffc-bnhrp                1/1     Running   3 (13d ago)   40d
+argocd-server-5fb8b6457d-6vq6r                     1/1     Running   2 (13d ago)   36d
 ```

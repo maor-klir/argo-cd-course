@@ -163,18 +163,19 @@ Testing with `KUBECONFIG=` pointed at the standalone file proves the cluster wor
 
 ## Step 4 — rename generic context names
 
-Name the file after the context, and keep both distinctive. `default`, `kubernetes-admin@kubernetes` and `k3s-default` all collide the moment we own two clusters.
+Name the file after the context, and keep the names distinctive. `default`, `kubernetes-admin@kubernetes` and `k3s-default` all collide the moment we own two clusters — and not only as context names: the cluster and user entries collide as well.
+
+`kubectl config rename-context` renames the context alone, and kubectl has no `rename-cluster` or `rename-user`. For a k3s file, rename all three — the entries' names and the context's references to them — with one edit of the standalone file:
 
 ```bash
-KUBECONFIG=/tmp/new.yaml kubectl config rename-context default k3s-lab
+sed -i -E 's/^(\s*(- )?(name|cluster|user|current-context): )default$/\1k3s-lab/' /tmp/new.yaml
+KUBECONFIG=/tmp/new.yaml kubectl config view --minify \
+  -o jsonpath='{.contexts[0].name} {.clusters[0].name} {.users[0].name}{"\n"}'   # k3s-lab, three times
 ```
 
-Renaming the *context* leaves the cluster and user entries under their old names. That's harmless — they're referenced by name from the context — but for readable output rename all three. kubectl has no `rename-cluster` or `rename-user`, so the other two are a text edit on the standalone file:
+**Renaming only the context is not safe:** tested with two k3s files whose contexts were renamed `k3s-qa` and `k3s-prod` and nothing else. After the merge, **both contexts reached the QA server** — the second file's `default` cluster lost the first-wins collision (rule 1), and `k3s-prod` resolved to the one that survived. No error, no warning.
 
-```bash
-KUBECONFIG=/tmp/new.yaml kubectl config rename-context default k3s-lab
-sed -i 's/^\( *name: \)default$/\1k3s-lab/' /tmp/new.yaml
-```
+Renaming only the `name:` lines is worse still: the context keeps pointing at `cluster: default`, which no longer exists — `error: cannot locate cluster default`.
 
 ## Step 5 — verify the merge
 

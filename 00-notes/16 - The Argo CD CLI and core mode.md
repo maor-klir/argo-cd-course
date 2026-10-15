@@ -42,7 +42,7 @@ Useful flags when the server is not plainly reachable:
 
 ## Core mode
 
-Officially: *"If set to true then the Argo CD CLI talks directly to Kubernetes instead of talking to Argo CD API server."*
+Officially: *"If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server"*.
 
 With `--core` the CLI **spawns a local API server process transparently** and reads the cluster directly. Nothing to port-forward, nothing to log into.
 
@@ -77,7 +77,7 @@ KUBECONFIG=/tmp/kc-argocd.yaml argocd app get guestbook --core
 
 **Authorisation falls back to Kubernetes RBAC:**  
 Bypassing `argocd-server` also bypasses Argo CD's own RBAC model and any SSO.  
-The docs are explicit that *"the user (or the process) invoking the CLI needs to have access to the Argo CD namespace with the proper permission in the Application and ApplicationSet resources."*  
+The docs are explicit that *"the user (or the process) invoking the CLI needs to have access to the Argo CD namespace with the proper permission in the `Application` and `ApplicationSet` resources for executing a given command."*  
 Whatever our kubeconfig can do to those resources is what we can do — no more, no less. Worth remembering before assuming a project restriction protects something.
 
 ### Core mode is a saved context, not a one-way switch

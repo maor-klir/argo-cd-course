@@ -33,6 +33,10 @@ This collapses the two-step rhythm — Argo CD reports, a person syncs — into 
 
 **One behaviour is easy to be caught by:** *"Automatic sync will not reattempt a sync if the previous sync attempt against the same commit-SHA and parameters had failed."* A failed sync is not retried in a loop against the same revision. Pushing a new commit, or syncing by hand, is what clears it — otherwise a broken revision sits failed and automation appears to have stopped working.
 
+**A successful sync is not repeated either:** *"Automated sync will only attempt one synchronization per unique combination of commit SHA1 and application parameters. If the most recent successful sync in the history was already performed against the same commit-SHA and parameters, a second sync will not be attempted, unless `selfHeal` flag is set to true."* A change to the sync policy is not a new commit, so it does not start one — the consequence for pruning is below.
+
+**Retrying a failed sync is a separate setting:** `syncPolicy.retry` — *"Argo CD can automatically retry a failed sync operation using exponential backoff"* — with its fields described in **12 - The Application CRD**.
+
 ### An empty `automated: {}` enables automated sync
 
 `automated` needs no contents to take effect. An empty object is a complete, working policy:
@@ -60,7 +64,7 @@ The CLI covers all three switches: `--sync-policy automated`, `--auto-prune`, `-
 
 Deleting a manifest from the repository is therefore not enough to remove the object. The resource keeps running, Argo CD keeps reporting the application `OutOfSync`, and the state persists until pruning is enabled or the object is removed by hand.
 
-**Pruning is an action taken during a sync, never a background sweep:** nothing reaps orphaned objects on a timer. Setting `prune: true` does not reach back and delete what is already orphaned — it changes what the *next* sync is permitted to do. Until a sync actually runs, the object stays and the application stays `OutOfSync`.
+**Pruning is an action taken during a sync, never a background sweep:** nothing reaps orphaned objects on a timer. Setting `prune: true` does not reach back and delete what is already orphaned — it changes what the *next* sync is permitted to do. Until a sync actually runs, the object stays and the application stays `OutOfSync`. Turning `prune` on does not start that sync either: when the current commit was already synced successfully, automated sync skips it, so the object goes only with the next commit, or with a manual sync with `--prune`.
 
 **"Orphaned" means something narrower in Argo CD:** a resource left behind by a skipped prune is still *tracked* — it carries this application's tracking id, which is exactly how Argo CD knows it is a prune candidate in the first place. An `AppProject` separately carries `orphanedResources`, which *"specifies if controller should monitor orphaned resources of apps in this project"* — resources sitting in the project's namespaces that **no** application claims at all. The two are different problems: one is an object Argo CD owns and has not been authorised to delete, the other is an object nobody owns.
 
@@ -116,7 +120,7 @@ So a `kubectl edit` against a live Deployment leaves the application `OutOfSync`
 | `--self-heal-backoff-cap-seconds` | `300` — the ceiling |
 | `--self-heal-timeout-seconds` | unset |
 
-Documentation for the current release describes a flat *"self-heal timeout (5 seconds by default)"* on `--self-heal-timeout-seconds`. The binary installed here carries the backoff trio instead, with that flag left without a default — worth reading from the controller rather than the docs when the exact timing matters.
+The documentation for the current release lists the same flags with the same defaults.
 
 **Self-healing and live debugging do not mix:** a value changed in the cluster to test something is reverted within seconds. The practical pattern is to turn it off for the duration and back on afterwards, rather than fighting it:
 
@@ -151,7 +155,7 @@ Server-populated fields such as `clusterIP` or `externalTrafficPolicy` never reg
 
 Self-healing cannot tell an operator's `kubectl scale` from a HorizontalPodAutoscaler's. Both change `spec.replicas`, and if the manifest declares replicas, both register as drift and both are reverted. Against an autoscaler that becomes a loop: it scales out, Argo CD scales back, it scales out again.
 
-The cleanest fix is a manifest that does not declare the field at all, where the chart allows it. Argo CD frames its own option as the fallback: *"In case it is impossible to fix the upstream issue, Argo CD allows you to optionally ignore differences of problematic resources."*
+The cleanest fix is a manifest that does not declare the field at all, where the chart allows it. The documentation's best practices say so directly: *"if you want the number of your deployment's replicas to be managed by Horizontal Pod Autoscaler, then you would not want to track `replicas` in Git."* Argo CD frames its own option as the fallback: *"In case it is impossible to fix the upstream issue, Argo CD allows you to optionally ignore differences of problematic resources."*
 
 ```yaml
 spec:

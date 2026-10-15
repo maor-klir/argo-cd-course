@@ -1,10 +1,11 @@
 ## Lab Goal
 
-Witness the core GitOps loop in action by making a declarative change in a Git repository and watching Argo CD automatically detect and apply it to the cluster.
+Witness the core GitOps loop in action by making a declarative change in a Git repository, watching Argo CD detect it automatically, and applying it to the cluster with a sync.
 
 ## Overview & Concepts
 
-This lab is the "Aha!" moment of GitOps. So far, we've told Argo CD to track a public repository that we don't control. To see the magic happen, we need to make a change to the desired state. To do this, you will first fork the example application repository into your own GitHub account. You'll then update your Argo CD `Application` manifest to point to your fork. Finally, you will make a simple change to a manifest in your forked repo—changing the replica count of a Deployment—and observe in the UI as Argo CD automatically detects the drift and syncs the cluster to match your change.
+This lab is the "Aha!" moment of GitOps. So far, we've told Argo CD to track a public repository that we don't control. To see the magic happen, we need to make a change to the desired state. To do this, you will first fork the example application repository into your own GitHub account. You'll then update your Argo CD `Application` manifest to point to your fork.  
+Finally, you will make a simple change to a manifest in your forked repo—changing the replica count of a Deployment—and observe in the UI as Argo CD automatically detects the difference. Applying it is still your decision: the `Application` has no automated sync policy, so you trigger the sync yourself.
 
 ## Lab Tasks
 

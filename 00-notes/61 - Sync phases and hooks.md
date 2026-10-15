@@ -1,4 +1,4 @@
-#argocd #sync #hooks #webhooks #jobs #helm
+#argocd #sync #hooks #webhooks #jobs
 
 # Sync phases and hooks
 

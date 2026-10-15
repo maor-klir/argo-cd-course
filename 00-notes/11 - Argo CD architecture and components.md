@@ -127,10 +127,10 @@ This is the reconciliation engine — the part that makes Argo CD *GitOps* rathe
 
 What it does:
 
-- watches only the resources created through an Argo CD **Application**, not everything in the cluster
+- caches the live state of every resource type it may list in each managed cluster, and compares and acts only on the resources that belong to an **Application**. Anything it should not see has to be excluded explicitly — *"Resources can be excluded from discovery and sync so that Argo CD is unaware of them"* (`resource.exclusions` in `argocd-cm`)
 - detects the `OutOfSync` state when live and desired differ
 - **optionally** takes corrective action — automatic sync and self-healing are opt-in per Application, not the default
-- invokes user-defined lifecycle hooks — `PreSync`, `Sync` and `PostSync` are the ones met most often, out of seven phases in all (**15 - Sync and health checks**)
+- invokes user-defined lifecycle hooks — `PreSync`, `Sync` and `PostSync` are the ones met most often, out of seven hook types in all (**61 - Sync phases and hooks**)
 
 It re-checks Git every two to three minutes by default — a `120s` reconciliation timeout plus up to `60s` of jitter — and maintains a lightweight cache of cluster state using Kubernetes watch APIs rather than repeatedly listing resources.
 
@@ -175,7 +175,7 @@ Installed by default with the chart. Like the application controller it has no S
 
 ## Why the application controller is a StatefulSet
 
-Every other component is a Deployment. The controller is the exception, and the reason is **not** that it stores data — the docs are explicit that it is stateless.
+Every other component is a Deployment. The controller is the exception, and the reason is **not** that it stores data. It has no persistent volume — on this install the StatefulSet declares no `volumeClaimTemplates`, only `emptyDir` scratch space — and the docs describe the system as a whole as *"largely stateless"*.
 
 It is a StatefulSet because it **shards**. When one controller can't hold the cache for every managed cluster in memory, we scale it out and each replica takes a subset of clusters. Sharding needs each replica to know *which* replica it is, and a StatefulSet is what gives pods a stable ordinal identity — `...-controller-0`, `-1`, `-2` — that survives restarts. A Deployment's pods have random names and no such identity.
 
@@ -196,11 +196,14 @@ The clearest way to see which components are load-bearing is **Argo CD Core**, a
 | Application controller | yes — the engine |
 | Repository server | yes |
 | Redis | yes — *"even if the Argo CD controller can run without Redis, it isn't recommended"* |
-| CRDs (Application, ApplicationSet) | yes |
+| ApplicationSet controller | yes |
+| CRDs (Application, ApplicationSet, AppProject) | yes |
 | API server | **no** |
 | Dex / OIDC authentication | **no** |
 | Notifications controller | **no** |
 | Argo CD RBAC model | **no** |
+
+Checked against the v3.4.6 `core-install.yaml`: it ships the application controller, the repository server, Redis and the ApplicationSet controller, plus all three CRDs.
 
 In Core mode the Web UI and CLI work only in a limited, local way, and we interact with Argo CD through Kubernetes resources and ordinary Kubernetes RBAC.
 

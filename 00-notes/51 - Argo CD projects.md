@@ -44,7 +44,7 @@ spec:
     kind: '*'
 ```
 
-*"The `default` project can be modified, but not deleted."* Until a dedicated project exists, every Application lands in it — on this cluster `headlamp` still does, while `guestbook` now belongs to `team-finance`.
+*"The `default` project can be modified, but not deleted."* Until a dedicated project exists, every Application lands in it — on 2026-10-14, after the projects lab, `headlamp` still did, while `guestbook` belonged to `team-finance`.
 
 The `spec.project` key itself is required by the CRD, as covered in **12 - The Application CRD**; it is an *empty* value that resolves to `default`. Locking `default` down has an immediate consequence: *"any application that attempts to use it will be denied until you explicitly move the application to a more permissive project."*
 
@@ -116,6 +116,8 @@ destinations:
 
 The asymmetry is deliberate: *"namespaced-scoped resources are restricted via a deny list, whereas cluster-scoped resources are restricted via allow list."*
 
+The prose speaks of allow and deny lists, but the fields keep their `Whitelist` and `Blacklist` names — in the current release and on the development branch alike — and the allow/deny spellings are rejected:
+
 ```text
 strict decoding error: unknown field "spec.namespaceResourceDenylist"
 ```
@@ -126,7 +128,7 @@ A new project that never mentions `clusterResourceWhitelist` can therefore deplo
 
 **Omitting `namespaceResourceWhitelist` is not the same as writing `[]`:** an absent whitelist allows every namespaced kind, but an explicit empty list allows none. Argo CD's permission check treats `nil` as "no restriction" and an empty list as a list with nothing in it.
 
-**A namespace whitelist also shapes the resource tree:** *"Any child resource whose GroupKind is not permitted by the project is omitted from the tree, even if it exists and is healthy in the cluster."* Whitelisting only `apps/Deployment` and `Service` hides the ReplicaSets and Pods beneath them until those kinds are added as well. The effect is display only — it *"does not affect sync permissions for resources already deployed; it only affects observability in the resource tree."*
+**A namespace whitelist also shapes the resource tree:** the latest documentation, not yet part of a release, puts it this way — *"Any child resource whose GroupKind is not permitted by the project is omitted from the tree, even if it exists and is healthy in the cluster."* Whitelisting only `apps/Deployment` and `Service` hides the ReplicaSets and Pods beneath them until those kinds are added as well. The effect is display only — it *"does not affect sync permissions for resources already deployed; it only affects observability in the resource tree."*
 
 Keeping RBAC objects out of a project splits across both scopes. A `RoleBinding` is namespaced, so it is kept out with `namespaceResourceBlacklist`; a `ClusterRoleBinding` is cluster-scoped, so it is kept out simply by never whitelisting it.
 
@@ -241,7 +243,7 @@ The installed CRD carries fourteen `spec` fields; the guardrails and roles above
 | `description` | free text |
 | `syncWindows` | *"controls when syncs can be run for apps in this project"* |
 | `orphanedResources` | monitors objects in the project's namespaces that no Application tracks — the meaning of "orphaned" distinguished in **31 - Automated sync, pruning and self-healing** |
-| `signatureKeys` | PGP key IDs that commits must be signed with before they may be synced |
+| `signatureKeys` | PGP key IDs that commits must be signed with before they may be synced. Deprecated in 3.5: *"The GnuPG key verification feature has been replaced by Source Integrity"*, configured through a new `sourceIntegrity` field |
 | `sourceNamespaces` | namespaces outside `argocd` that may hold this project's Applications |
 | `destinationServiceAccounts` | service accounts impersonated when syncing, per destination |
 | `permitOnlyProjectScopedClusters` | restricts destinations to clusters registered to this project |

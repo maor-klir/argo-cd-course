@@ -18,8 +18,9 @@ When the same value is defined in multiple places, Argo CD follows a strict orde
 
 1. `values.yaml` in the chart itself (the defaults)
 2. `valueFiles`
-3. `valuesObject` / `values`
-4. `parameters` (highest priority)
+3. `values` (the same content as `valuesObject`, written as a string)
+4. `valuesObject`
+5. `parameters` (highest priority)
 
 This means that `parameters` will always win over `valuesObject`, which wins over `valueFiles`, which wins over the chart's default `values.yaml`.
 
@@ -58,7 +59,7 @@ This means that `parameters` will always win over `valuesObject`, which wins ove
    ```
 2. Apply the manifest and sync in Argo CD
 3. Verify that now only 2 replicas are running and the service type changed to NodePort
-4. Notice how `valuesObject` completely replaced the previous configuration
+4. Notice that `replicaCount: 3` from `values-custom.yaml` no longer applies. That is because you removed the `valueFiles` entry, not because `valuesObject` replaces a values file wholesale: precedence is decided key by key. Had you kept both, `valuesObject` would win only for the keys it sets, and every other key from the file would still apply.
 
 ### Part 4: Override Using `parameters`
 

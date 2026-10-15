@@ -25,7 +25,7 @@ After creating the project, you will deploy your `guestbook` application and mak
 ## Helpful Resources
 
 - [Argo CD Projects Documentation](https://argo-cd.readthedocs.io/en/stable/user-guide/projects/)
-- [The `AppProject` CRD Specification](https://argo-cd.readthedocs.io/en/stable/operator-manual/api-docs/#argoproj.io/v1alpha1.AppProject)
+- [The `AppProject` Specification](https://argo-cd.readthedocs.io/en/stable/operator-manual/project-specification/)
 
 ## Reflection Questions
 

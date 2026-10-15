@@ -1,4 +1,4 @@
-#argocd #deletion #finalizers #pruning #kubernetes
+#argocd #finalizers #pruning #kubernetes
 
 # Argo CD propagation policies
 
@@ -6,7 +6,7 @@ Argo CD reuses the Kubernetes propagation policies from **52 - Propagation polic
 
 ## The Application owns nothing, in Kubernetes' sense
 
-The objects Argo CD manages carry no owner reference to their Application — only the tracking annotation from **13 - Argo CD Applications vs. Kubernetes primitive manifests**:
+The objects Argo CD manages carry no owner reference to their Application — only the tracking annotation from **13 - Argo CD Applications vs. Kubernetes primitive manifests**. Read from the cluster on 2026-10-15, when `guestbook` deployed into `finance`:
 
 ```text
 Deployment  guestbook-helm-guestbook   ownerReferences: none   tracking-id: guestbook:apps/Deployment:finance/guestbook-helm-guestbook
@@ -49,7 +49,7 @@ That last point is what makes the two policies differ at the Application level. 
 | the UI | **yes** — the dialog defaults to **Foreground**, with **Background** and **Non-Cascading (Orphan)** offered | the dialog |
 | `kubectl delete app` | **only if the finalizer is already set** | patch the finalizer in or out first |
 
-Neither Application on this cluster carries the finalizer. `kubectl delete app guestbook` would therefore leave its Deployment and Service running, while `argocd app delete guestbook` would remove them — the same request, opposite results, decided by the tool.
+On 2026-10-15 neither Application on this cluster carried the finalizer, so `kubectl delete app guestbook` would have left its Deployment and Service running, while `argocd app delete guestbook` would have removed them — the same request, opposite results, decided by the tool.
 
 **`kubectl delete --cascade` does not control Argo CD's cascade:** that flag sets the Kubernetes policy for the *Application object's* own dependents by owner reference, and it has none. The documented `kubectl` route for a non-cascading delete accordingly changes the finalizer, not the flag:
 

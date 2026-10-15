@@ -21,6 +21,8 @@ Failed to load target state: failed to generate manifest for source 1 of 1: rpc 
 
 With no SSH key matched, Argo CD's git client falls back to asking an **SSH agent** for one — the default behaviour of the git library underneath. The repo-server runs no agent, so `SSH_AUTH_SOCK` is unset and the attempt fails before any connection is made.
 
+**From Argo CD 3.5 the fallback is built by Argo CD itself:** the upgrade notes say it *"builds the same `ssh-agent`-based auth itself but wires the host-key callback to the `argocd-ssh-known-hosts-cm` ConfigMap"*. With no key, the result is the same — no agent, no access — but host keys for such repositories are then checked against that ConfigMap rather than a `known_hosts` file inside the repo-server container.
+
 The same mistake therefore reads differently by transport, but means the same thing:
 
 | Transport | The no-credential message ends with | Where it failed |

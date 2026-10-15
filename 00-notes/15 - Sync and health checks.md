@@ -12,7 +12,7 @@ Confusing them wastes debugging time, because each has a failure mode the other 
 | Source of truth | the manifests in Git | the resources' own status in the cluster |
 | Fails when | someone edited the cluster, or Git moved on | the workload is broken, whatever Git says |
 
-Official definitions: sync status is *"whether or not the live state matches the target state — is the deployed application the same as Git says it should be?"*, while health is *"the health of the application, is it running correctly? Can it serve requests?"*
+Official definitions: sync status is *"Whether or not the live state matches the target state. Is the deployed application the same as Git says it should be?"*, while health is *"The health of the application, is it running correctly? Can it serve requests?"*
 
 The shapes differ:
 - Sync is a **two-sided comparison** — Argo CD renders the manifests from the repository, reads the live objects, and diffs them.
@@ -103,8 +103,10 @@ Deployment · ReplicaSet · StatefulSet · DaemonSet
 Service · Ingress
 Job · CronJob
 PersistentVolumeClaim
-Argo CD Application
+Argo CD Application   ← removed in 1.8, see below
 ```
+
+**The `Application` entry needs a caveat:** *"The health assessment of `argoproj.io/Application` CRD has been removed in argocd 1.8"*. An Application that manages other Applications gets no health for them unless the check is restored as a custom health check in `argocd-cm`, which the documentation provides — *"You might need to restore it if you are using app-of-apps pattern and orchestrating synchronization using sync waves."*
 
 Anything outside that list — most custom resources — reports `Healthy` by default unless we teach Argo CD how to judge it.  
 Custom checks are written in **Lua** and configured in the `argocd-cm` ConfigMap under `resource.customizations.health.<group>_<kind>`, or contributed upstream into `resource_customizations/`.  
@@ -164,7 +166,7 @@ Sync status is not worked out at the moment we look at it — it is the stored r
 
 | Trigger | Detail |
 |---|---|
-| Polling | on a `timeout.reconciliation` cycle — this install sets `120s` with `60s` of jitter, so every two to three minutes |
+| Polling | on a `timeout.reconciliation` cycle — by default `120s` plus up to `60s` of jitter, so every two to three minutes |
 | A tracked resource changes | *"an Argo CD Application is refreshed every time a resource that belongs to it changes"* |
 | Git webhook | a push notifies Argo CD immediately instead of waiting for the next poll |
 | Manual | the UI's **Refresh** button, or `--refresh` on the CLI |
@@ -192,7 +194,7 @@ It is a **maximum**, not a fixed addition — each cycle draws a fresh random va
 
 Together they put each application's next refresh somewhere between two and three minutes after the last.
 
-The same key does double duty: for the repo-server, `timeout.reconciliation` sets the expiration on **cached git revisions** — which is the cache a hard refresh discards.
+The same key does double duty: for the repo-server, `timeout.reconciliation` sets the expiration on **cached git revisions**.
 
 ### Refresh vs. hard refresh
 
@@ -241,19 +243,7 @@ The sync status does not change to reflect progress. A separate field tracks the
 | `Error` | the operation errored before completing |
 | `Terminating` | it is being cancelled |
 
-Within a sync, resources are applied in ordered phases:
-
-| Phase | When it runs |
-|---|---|
-| `PreSync` | before the manifests are applied |
-| `Sync` | after all `PreSync` hooks succeed, alongside applying the manifests |
-| `Skip` | marks a manifest not to be applied at all |
-| `PostSync` | after all `Sync` hooks succeed, the apply succeeds, and all resources are `Healthy` |
-| `SyncFail` | when the sync operation fails |
-| `PreDelete` | before the application's resources are deleted |
-| `PostDelete` | after the application's resources are deleted |
-
-A `PreSync` failure stops the whole sync and marks it failed — later phases never run. Within a phase, Argo CD orders resources by **phase → wave (lower first) → kind → name**, which is why namespaces are created before the resources that go in them.
+Within a sync, resources are applied in phases — `PreSync`, then `Sync`, then `PostSync`, with `SyncFail` when the operation fails — and within each phase in numbered waves, ordered by phase → wave → kind → name. A `PreSync` failure stops the whole sync before any manifest is applied. Hooks and phases are covered in **61 - Sync phases and hooks**, waves in **62 - Sync waves**.
 
 Each resource's result is recorded as `Synced`, `SyncFailed`, `Pruned` or `PruneSkipped`.
 

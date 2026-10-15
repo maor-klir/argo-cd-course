@@ -110,8 +110,8 @@ A chart pulled from a public Helm repository:
 spec:
   source:
     chart: sealed-secrets
-    repoURL: https://bitnami-labs.github.io/sealed-secrets
-    targetRevision: 1.16.1
+    repoURL: https://bitnami.github.io/sealed-secrets
+    targetRevision: 2.20.0
     helm:
       releaseName: sealed-secrets
   destination:
@@ -174,7 +174,7 @@ Hooks survive the translation, because Argo CD rewrites them into its own:
 | `helm.sh/hook: pre-install` | `argocd.argoproj.io/hook: PreSync` |
 | `helm.sh/hook-weight` | `argocd.argoproj.io/sync-wave` |
 
-A chart's pre-install Job therefore runs in the `PreSync` phase of a sync, ordered by wave — the same phase and wave machinery every other sync uses, covered in **15 - Sync and health checks**. The chart's intent is preserved; the thing executing it is Argo CD.
+A chart's pre-install Job therefore runs in the `PreSync` phase of a sync, ordered by wave — the same phase and wave machinery every other sync uses, covered in **61 - Sync phases and hooks** and **62 - Sync waves**. The chart's intent is preserved; the thing executing it is Argo CD.
 
 ## CRDs and tests
 
@@ -185,7 +185,7 @@ Two render behaviours charts commonly trip over:
 | `skipCrds: true` | leaves the chart's `crds/` directory out of the render |
 | `skipTests: true` | leaves test manifests out of the render |
 
-CRDs are included by default — *"Helm installs custom resource definitions in the `crds` folder by default if they are not existing"* — so Argo CD renders them, applies them, and from then on manages them like any other resource it owns.
+CRDs are included by default — *"Helm installs custom resource definitions in the `crds` folder by default if they are not existing"* — so Argo CD renders them, applies them, and from then on manages them like any other resource it owns — with one exception: a cascading delete of the Application leaves CRDs in place (**53 - Argo CD propagation policies**).
 
 ## Which Helm binary renders
 

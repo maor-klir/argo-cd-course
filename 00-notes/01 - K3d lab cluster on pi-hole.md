@@ -3,7 +3,7 @@
 # K3d lab cluster on a pi-hole
 
 A k3d cluster on an always-on home server, driven with `kubectl` from the laptop.  
-Built for the Argo CD course labs, which need only port-forward, a single cluster and outbound git access — no persistent volumes, no ingress, no LoadBalancer.
+Built for the Argo CD labs in this repository, which need only port-forward, a single cluster and outbound git access — no persistent volumes, no ingress, no LoadBalancer.
 
 Companion notes: **02 - TLS SANs** for why `--tls-san` is mandatory here, **03 - Managing kubeconfigs** for how the context reaches the laptop.
 
@@ -96,7 +96,7 @@ That flag has three grammars nested inside each other — see *The `--k3s-arg` s
 
 **`--api-port 0.0.0.0:6443`** publishes the API on every host interface instead of loopback only. It fixes *reachability* and leaves *identity* broken.
 
-**The two `--tls-san` values** fix identity. k3s mints its serving certificate on first boot from addresses it can work out for itself, and the host's LAN address isn't one of them. IP and DNS SANs are not interchangeable, so both forms are passed — full reasoning in **02 - TLS SANs**. Certificates are minted **once**: adding a SAN to a running cluster does nothing, so list every address we might plausibly use up front.
+**The two `--tls-san` values** fix identity. k3s mints its serving certificate on first boot from addresses it can work out for itself, and the host's LAN address isn't one of them. IP and DNS SANs are not interchangeable, so both forms are passed — full reasoning in **02 - TLS SANs**. Under k3d the SAN list is fixed at creation: k3s arguments are set only by `k3d cluster create` — `k3d cluster edit` changes port mappings and nothing else — so list every address we might plausibly use up front.
 
 **`--disable=traefik`** because Pi-hole owns host 80/443. k3d doesn't map those unless asked, so there's no hard conflict — but disabling it removes the trap and keeps the Argo CD resource tree free of an app we never deployed.
 
@@ -211,7 +211,10 @@ The first three are ours, passed via `--k3s-arg` and so in `=` form. The last tw
 | `agent:1` | a specific agent by index | documented |
 | `loadbalancer` | the serverlb container | documented |
 | `all` | every node | documented |
-| `agent:0,1` | comma-separated index list | **unverified** — not in k3d docs, don't rely on it |
+| `agent:1,3,5` | a list of indexes | documented |
+| `agent:0-2` | a range of indexes | documented |
+
+The general syntax, from k3d's *Nodefilters* concept page, is `@<group>:<subset>` — the group one of `server`, `servers`, `agent`, `agents`, `loadbalancer` or `all`, the subset a wildcard, an index, a list or a range.
 
 Multi-filter form is `ARG@NODEFILTER[;@NODEFILTER]`, straight from `k3d cluster create --help`. Note the `@` repeats after the semicolon: `"--tls-san=192.168.0.2@server:0;@server:1"`.
 
@@ -235,7 +238,7 @@ ssh pi-hole "docker inspect k3d-argocd-server-0 -f '{{json .Config.Cmd}}'"
 $ ssh pi-hole 'k3d kubeconfig get argocd'
 bash: line 1: k3d: command not found
 $ ssh pi-hole            # then interactively
-eaor@pi-hole:~$ k3d cluster ls     # works fine
+maor@pi-hole:~$ k3d cluster ls     # works fine
 ```
 
 k3d is a **Homebrew** install at `/home/linuxbrew/.linuxbrew/bin/k3d`. Brew's `shellenv` is evaluated in the interactive rc only, so that directory is missing from the non-interactive PATH that `ssh host 'cmd'` gets. Same host, same user, different PATH. Fix: absolute path in ssh one-liners.

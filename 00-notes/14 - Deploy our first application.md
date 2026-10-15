@@ -83,7 +83,9 @@ error: error validating "app.yaml": failed to download openapi:
 Get "https://127.0.0.1:1/openapi/v2": dial tcp 127.0.0.1:1: connect: connection refused
 ```
 
-It needs the cluster for two things: the OpenAPI schema it validates shape against, and the live object it merges our file into. `--validate=false` skips the first.
+It needs the cluster for two things: the OpenAPI document that validation downloads, and the live object it merges our file into. `--validate=false` skips the first.
+
+**Downloading the schema is not enforcing it:** `kubectl apply --help` says validation *"will perform server side validation if ServerSideFieldValidation is enabled on the api-server, but will fall back to less reliable client-side validation if not"*. With an API server that supports it, the checking is the API server's job — and a client dry run never sends the request. Tested here: a ConfigMap with an unknown top-level field and a Deployment with `replicas: "two"` both came back `created (dry run)` in client mode, while server mode rejected the ConfigMap outright.
 
 **The output is often identical, so it is not the differentiator:** running both modes against the already-deployed `guestbook` app produced byte-identical YAML, 111 lines each. Both fetch the live object and show the merge result.
 
@@ -205,7 +207,9 @@ syncPolicy:
     - ServerSideApply=true
 ```
 
-Worth reaching for when manifests are large enough to strain the annotation, or when another controller legitimately co-owns fields on the same resource — an HPA setting `replicas`, a mutating webhook injecting a sidecar. Under client-side apply Argo CD would fight those writers silently; under server-side apply the contention becomes visible.
+Worth reaching for when manifests are large enough to strain the annotation: server-side apply keeps no `last-applied-configuration` copy.
+
+**It does not make conflicts visible in Argo CD:** *"If the `ServerSideApply=true` sync option is set, Argo CD will use the `kubectl apply --server-side --force-conflicts` command to apply changes."* With `--force-conflicts`, Argo CD takes ownership of every field its manifest declares — another writer is overwritten just as under client-side apply. The fix for a second writer, such as an HPA setting `replicas`, is to leave the field out of the manifest; the documentation's best practices say so directly: *"if you want the number of your deployment's replicas to be managed by Horizontal Pod Autoscaler, then you would not want to track `replicas` in Git."* More in **31 - Automated sync, pruning and self-healing**.
 
 ## Apply it
 
@@ -297,7 +301,8 @@ spec:                                    # declarative — no manual step ever a
 | **Prune** | also delete resources that no longer exist in Git |
 | **Dry Run** | run the comparison and report, change nothing |
 | **Apply Only** | skip sync hooks (`PreSync`/`PostSync`) |
-| **Force** | use `kubectl replace` instead of `apply` — recreates rather than patches |
+| **Replace** | `kubectl replace` or `create` instead of `apply` — the CLI's *"Use a kubectl create/replace instead apply"* |
+| **Force** | a force apply — the CLI's *"Use a force apply"*: a resource that cannot be patched is deleted and re-created. With **Replace** as well, every resource is deleted and re-created (**22 - Deploying Helm charts**) |
 | **Resource selection** | sync only some of the app's resources |
 
 For this lab the defaults are correct — click Synchronize, or run the CLI command.
@@ -326,7 +331,7 @@ Then open `http://localhost:8081`. The `svc/` prefix matters — `port-forward` 
 
 ## `HEAD` is a rolling pointer
 
-`targetRevision: HEAD` resolves to the latest commit on the repository's default branch, *at the moment Argo CD checks*. Push a commit and the app goes `OutOfSync` on its own — nothing was applied, but the target moved underneath it.
+`targetRevision: HEAD` resolves to the latest commit on the repository's default branch, *at the moment Argo CD checks*. Push a commit that changes this application's rendered manifests and the app goes `OutOfSync` on its own — nothing was applied, but the target moved underneath it. A commit elsewhere in the repository moves `HEAD` as well, but renders the same manifests, so the app stays `Synced` at the new revision.
 
 That is convenient in a lab and wrong in production, where we want a deployment to be reproducible:
 
@@ -379,5 +384,7 @@ kubectl delete -f guestbook-app.yaml
 Without the `resources-finalizer.argocd.argoproj.io` finalizer this deletes only the `Application` — the `Deployment` and `Service` keep running in `default`, now unmanaged. Add the finalizer for a cascading delete, or remove them by hand:
 
 ```bash
-kubectl -n default delete deploy,svc -l app=guestbook-ui
+kubectl -n default delete deploy,svc guestbook-ui
 ```
+
+By name, not by label: neither manifest sets `metadata.labels` — `app: guestbook-ui` appears only in the selector and the pod template — so `-l app=guestbook-ui` matches nothing.
