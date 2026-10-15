@@ -13,7 +13,7 @@ spec:
       allowEmpty: false
 ```
 
-## The default is to report, not to act
+## By default, Argo CD reports drift but does not sync
 
 Out of the box Argo CD detects drift and stops there. It marks resources `OutOfSync` and waits to be told to act, which is a deliberate safety position rather than an omission: it leaves room to read the planned change before anything reaches the cluster.
 
@@ -33,7 +33,7 @@ This collapses the two-step rhythm — Argo CD reports, a person syncs — into 
 
 **One behaviour is easy to be caught by:** *"Automatic sync will not reattempt a sync if the previous sync attempt against the same commit-SHA and parameters had failed."* A failed sync is not retried in a loop against the same revision. Pushing a new commit, or syncing by hand, is what clears it — otherwise a broken revision sits failed and automation appears to have stopped working.
 
-### The presence of the key is the switch
+### An empty `automated: {}` enables automated sync
 
 `automated` needs no contents to take effect. An empty object is a complete, working policy:
 

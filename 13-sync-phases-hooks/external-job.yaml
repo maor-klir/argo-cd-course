@@ -13,7 +13,10 @@ spec:
       containers:
         - name: migration
           image: busybox
-          command:
-            - 'sh'
-            - '-c'
-            - "echo 'Running db migration...'; sleep 10; echo 'Done!'"
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -e
+              echo 'Running a database migration...'
+              sleep 10
+              echo 'Done!'

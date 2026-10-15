@@ -18,7 +18,7 @@ So the Kubernetes garbage collector never cascades from an Application to its re
 1. Argo CD deletes the Application's resources — the Deployment, the Service
 2. Kubernetes deletes *their* dependents — the ReplicaSet and Pods, the EndpointSlice — through owner references, using the policy Argo CD passed along
 
-## The finalizer is the switch
+## A finalizer decides whether deletion cascades
 
 Whether deleting an Application cascades at all is decided by a finalizer on the Application:
 
