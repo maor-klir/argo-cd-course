@@ -209,7 +209,7 @@ A database migration belongs in a hook: it should run once per release, not once
 
 ## Sync waves
 
-Within a phase, the `argocd.argoproj.io/sync-wave` annotation orders resources: lower waves first, wave `0` by default, negative waves allowed. Argo CD orders a sync by phase, then wave, then kind, then name — phases give the coarse order, waves the order inside each phase.
+Within a phase, the `argocd.argoproj.io/sync-wave` annotation orders resources into steps, each waiting for the previous one to become healthy — covered in **62 - Sync waves**.
 
 ## Verify
 
@@ -228,4 +228,4 @@ Sync                Service/guestbook-helm-guestbook      Running     service/gu
 Sync                Deployment/guestbook-helm-guestbook   Running     deployment.apps/guestbook-helm-guestbook configured
 ```
 
-Hooks show their type in the second column; ordinary resources leave it empty. The fourth column is meaningful only for hooks — ordinary resources show `Running` there even after a successful sync. The results remain after a `HookSucceeded` hook has been deleted.
+Hooks show their type in the second column; ordinary resources leave it empty. In the fourth column, ordinary resources show `Succeeded` once Argo CD has waited for their health, and `Running` if they were in the last step, which Argo CD does not wait for — as for the Service and Deployment here. The results remain after a `HookSucceeded` hook has been deleted.
