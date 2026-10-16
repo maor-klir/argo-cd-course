@@ -42,3 +42,4 @@ Argo CD runs only the hooks defined in the application's own source. A `Job` tha
 1. Why is it important to use `BeforeHookCreation` in the hook delete policy for jobs that run on every sync?
 2. How does a `PreSync` hook differ from a standard `initContainer` in a Pod?
 3. What happens to the main application deployment if the `PreSync` hook fails?
+4. Once a sync has finished, which of drift detection, self-healing, pruning and health still apply to a hook?

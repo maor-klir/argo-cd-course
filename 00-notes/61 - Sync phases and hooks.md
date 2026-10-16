@@ -133,6 +133,17 @@ In that case a Deployment that never becomes `Healthy` keeps the operation `Runn
 
 **Hooks do not affect the sync status:** the controller skips them when it computes the Application's sync status — in its own words, hooks and skipped resources *"don't store sync status, and do not affect overall sync status"* (controller source, `state.go`). Committing a new hook to Git therefore leaves the Application `Synced`. Automated sync only starts when the Application is `OutOfSync` — *"Only perform auto-sync if we detect OutOfSync status"* (controller source) — so a hook-only change runs at the next sync, whether we trigger it ourselves or another change makes the Application `OutOfSync`. Automated sync, pruning and self-healing are covered in **31 - Automated sync, pruning and self-healing**.
 
+**Once the sync is over, Argo CD stops looking at a hook:** it creates the hook for the operation and judges it while it runs, but afterwards the hook sits outside everything Argo CD does with ordinary resources (controller source, `setApplicationHealth`; sync engine source, `getSyncTasks`):
+
+| | Ordinary resource | Hook, once the sync is over |
+|---|---|---|
+| Drift | compared continuously; a change makes the app `OutOfSync` | ignored by the comparison |
+| Self-healing | a live edit is reverted | never triggered — self-healing acts only on `OutOfSync` |
+| Application health | counts toward it | skipped — a failed hook Job left in the cluster does not make the app `Degraded` |
+| Removal | pruned once dropped from Git | never pruned — only its delete policy removes it |
+
+**A hook removed from Git can be left behind:** if its delete policy has not already removed it, nothing else will. Argo CD never creates a prune task for a hook, and with the manifest gone there is no next run to trigger `BeforeHookCreation`. The object stays in the cluster until we delete it by hand.
+
 **Selective syncs skip hooks:** *"Hooks do not run during a selective sync operation."* Syncing chosen resources in the UI, or `argocd app sync --resource`, applies those resources and runs no hooks.
 
 **Each hook gets a finalizer while it runs:** Argo CD adds `argocd.argoproj.io/hook-finalizer` to every hook it creates and removes it once the hook has completed (sync engine source). The source describes its purpose: *"to ensure they are deleted only after the sync phase is completed."* A Job's `ttlSecondsAfterFinished`, or someone deleting the Job by hand, cannot remove it before Argo CD has read its result — the object waits in `Terminating`, as described under **Finalizers** in **52 - Propagation policies**.
